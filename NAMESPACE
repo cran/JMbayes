@@ -1,0 +1,32 @@
+# Exported functions
+export(bma.combine, coef.JMbayes, dbs, dns, fixef.JMbayes, jointModelBayes, 
+	ibs, ins, logLik.JMbayes, plot.JMbayes, plot.survfit.JMbayes, predict.JMbayes, ranef.JMbayes, 
+	survfitJM)
+
+# Imported functions
+importFrom(nlme, fixed.effects)
+importFrom(nlme, fixef)
+importFrom(nlme, random.effects)
+importFrom(nlme, ranef)
+importFrom(stats, makepredictcall)
+
+# S3 methods
+S3method(coef, JMbayes)
+S3method(coef, summary.JMbayes)
+S3method(confint, JMbayes)
+S3method(fixef, JMbayes)
+S3method(logLik, JMbayes)
+S3method(makepredictcall, dbs)
+S3method(makepredictcall, dns)
+S3method(makepredictcall, ibs)
+S3method(makepredictcall, ins)
+S3method(plot, JMbayes)
+S3method(plot, survfit.JMbayes)
+S3method(predict, JMbayes)
+S3method(print, JMbayes)
+S3method(print, summary.JMbayes)
+S3method(print, survfit.JMbayes)
+S3method(ranef, JMbayes)
+S3method(summary, JMbayes)
+S3method(survfitJM, JMbayes)
+S3method(vcov, JMbayes)
