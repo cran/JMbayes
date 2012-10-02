@@ -96,6 +96,8 @@ jointModelBayes(lmeObject, survObject, timeVar,
         \item{knots}{a numeric vector of knots positions for the spline approximation of the log baseline risk function; default is \code{NULL}, which
             means that the knots are calculated based on the percentiles of the observed event times.}
         \item{lng.in.kn}{a numeric scalar indicating the number of knots to use (based on the percentiles); default is 5.}
+        \item{ordSpline}{a numeric scalar setting the order of the spline function. This is the number of coefficients in each piecewise polynomial segment, 
+	    thus a cubic spline has order 4; default is 4.}
         \item{ObsTimes.knots}{logical; if \code{TRUE} (default), the knots are set using the percentiles of the observed event times
             (i.e., including both true events and censored observations). If \code{FALSE}, the knots are set based on the percentiles of
             the true event times alone.}

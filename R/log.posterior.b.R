@@ -37,7 +37,8 @@ function (b, y, Mats, survMod, ii) {
         - exp(eta.tw) * P * sum(wk * Vi)
     } else if (survMod == "spline-PH") {
         kn <- object$control$knots
-        W2s <- splineDesign(unlist(kn, use.names = FALSE), st, outer.ok = TRUE)
+        W2s <- splineDesign(unlist(kn, use.names = FALSE), st, 
+            ord = object$control$ordSpline, outer.ok = TRUE)
         Vi <- exp(c(W2s %*% Bs.gammas.new) + tt)
         idT <- rep(seq_along(P), each = 15)
         - sum(exp(eta.tw) * P * tapply(wk * Vi, idT, sum))

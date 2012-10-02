@@ -72,7 +72,7 @@ function (lmeObject, survObject, timeVar, survMod = c("weibull-PH", "spline-PH")
         n.thin = 5, n.adapt = 1000, K = 100, C = 5000, working.directory = getwd(), 
         bugs.directory = "C:/Program Files/WinBUGS14/", openbugs.directory = NULL, 
         clearWD = TRUE, over.relax = TRUE, knots = NULL, ObsTimes.knots = TRUE, 
-        lng.in.kn = 5, bugs.seed = 1, quiet = FALSE)
+        lng.in.kn = 5, ordSpline = 4, bugs.seed = 1, quiet = FALSE)
     control <- c(control, list(...))
     namC <- names(con)
     con[(namc <- names(control))] <- control
@@ -169,14 +169,14 @@ function (lmeObject, survObject, timeVar, survMod = c("weibull-PH", "spline-PH")
             con$knots
         }
         kn <- kn[kn < max(Time)]
-        rr <- sort(c(rep(range(Time, st), 4), kn))
+        rr <- sort(c(rep(range(Time, st), con$ordSpline), kn))
         con$knots <- rr
-        W2 <- splineDesign(rr, Time)
+        W2 <- splineDesign(rr, Time, ord = con$ordSpline)
         if (any(colSums(W2) == 0))
             stop("\nsome of the knots of the B-splines basis are set outside the range",
                 "\n   of the observed event times for one of the strata; refit the model", 
                 "\n   setting the control argument 'equal.strata.knots' to FALSE.")
-        W2s <- splineDesign(rr, c(t(st)))
+        W2s <- splineDesign(rr, c(t(st)), ord = con$ordSpline)
         x <- c(x, list(W2 = W2, W2s = W2s))
     }
     # default priors
@@ -435,7 +435,15 @@ function (lmeObject, survObject, timeVar, survMod = c("weibull-PH", "spline-PH")
     out$coefficients <- lapply(sims.list, 
         function (x) if (is.matrix(x)) colMeans(x) else mean(x))
     out$StErr <- lapply(sims.list, 
-        function (x) if (is.matrix(x)) apply(x, 2, sd) else sd(x))
+        function (x) {
+            f <- function (x) {
+                acf.x <- drop(acf(x, lag.max = length(x) - 1, plot = FALSE)$acf)[-1]
+                acf.x <- acf.x[seq_len(rle(acf.x > 0)$lengths[1])]
+                ess <- 1 + 2 * sum(acf.x)
+                ess * sd(x) / length(x)
+            }
+            if (is.matrix(x)) apply(x, 2, f) else f(x)
+    })
     out$CIs <- lapply(sims.list, 
         function (x) if (is.matrix(x)) apply(x, 2, quantile, probs = c(0.025, 0.975)) 
             else quantile(x, probs = c(0.025, 0.975)))

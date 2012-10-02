@@ -1,0 +1,11 @@
+Changes in version: JMbayes_0.2-0
+
+  * the new control argument 'ordSpline' sets the order of the spline for the B-spline basis (i.e.,
+    it is passed to the 'ord' argument of splineDesign()). By setting to 1 a piecewise-constant baseline
+    hazard is fitted.
+
+  * corrected some typos in .Rd files.
+   
+
+
+

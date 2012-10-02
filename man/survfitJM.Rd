@@ -22,7 +22,7 @@ survfitJM(object, newdata, \dots)
   \item{object}{an object inheriting from class \code{JMBayes}.}
   \item{newdata}{a data frame that contains the longitudinal and covariate information for the subjects for which prediction 
     of survival probabilities is required. The names of the variables in this data frame must be the same as in the data frames that
-    were used to fit the linear mixed effects model (using \code{lme()}) and the survival model (using \code{coxph()} or \code{survreg()})
+    were used to fit the linear mixed effects model (using \code{lme()}) and the survival model (using \code{coxph()})
     that were supplied as the two first argument of \code{\link{jointModelBayes}}. In addition, this data frame should contain a variable 
     that identifies the different subjects (see also argument \code{idVar}).}
   \item{idVar}{the name of the variable in \code{newdata} that identifies the different subjects.}

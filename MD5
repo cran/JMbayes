@@ -1,7 +1,7 @@
-463cd0f1bbb1274dc854c5237d7d3664 *DESCRIPTION
+12f842db94c32dd0f2c2cae12fc366f4 *DESCRIPTION
 e06764805a958c10f1306171971f66af *NAMESPACE
 93b6693eb46ba9fd7d00c07d37efd3a6 *R/ModelMats.R
-85477219a1bed62b2d7a28741463f3f6 *R/S.b.R
+b1ee5e32b7501e05015945f579c930d5 *R/S.b.R
 9e55e803416464698e6e469995711429 *R/Weib.sharedRE.R
 f898240681583ec5f54066b133ba91cb *R/Weib.td.both.R
 dde2c94803af04bde612f27e1f704c70 *R/Weib.td.slope.R
@@ -27,8 +27,8 @@ d8dd1bdf0d8c9f5dca4737209c9b1e74 *R/fixef.JMbayes.R
 87b1623726eb646a23b47acdc656c121 *R/globals.R
 d63b16d1a0b62d15a6d47aa631ce8329 *R/ibs.R
 20c3f75d5c1d8d33f248f96b1852a552 *R/ins.R
-6d29e5c40cc4859b6a0ed9d96f09d915 *R/jointModelBayes.R
-43ed3b3186d5f580cd9d257eb2b28253 *R/log.posterior.b.R
+e417216b7b3d5fc3612a9bd05d54cc07 *R/jointModelBayes.R
+609b8cd7a0c3a6b9640baacd260786f6 *R/log.posterior.b.R
 f980db404fdfac13c77aef7d087e775d *R/logLik.JMbayes.R
 c745b7b7656497bbc5f497f48e3c1052 *R/makepredictcall.dbs.R
 43ffa2a916ffda5ac9489b1358aee000 *R/makepredictcall.dns.R
@@ -67,13 +67,14 @@ fd124eafd19a13985f40c56ca060297d *data/pbc2.id.rda
 1cdb5fdff526241c60d946c87708697c *data/pbc2.rda
 0fc64eb8557069917bff4b4e7888b336 *data/prothro.rda
 5531579cdc76b021f960668301a4b359 *data/prothros.rda
+e9a5a638d487194c85887bc46a7fc040 *inst/NEWS
 a4db323c7bb11eec729797d31119bdf6 *man/DerivIntSplines.Rd
-ed33034ea598ddaacafb16f8ab161f29 *man/JMbayes.Rd
+33762abb5d051e5ae3fd80ee14584377 *man/JMbayes.Rd
 e7794316564b676844f35e482e2d4e49 *man/JMbayesObject.Rd
 a8d601aee1a4beb0c3fd47e4a9e68ee0 *man/aids.Rd
 ae19791698642c8d2d3a14ad53356ec7 *man/bma.combine.Rd
 534c8b087bf1bee1d8b6818ae4e05a22 *man/coef.Rd
-adca84b36aa3bb9fc1b94c2154c6e14f *man/jointModelBayes.Rd
+9f1e1e2f9c1d7d634266703189d9a7c1 *man/jointModelBayes.Rd
 34d85406ceaf86900557cb39d7f12480 *man/logLik.Rd
 e7e3bffa1f4c89ad37091cb7c4af9f57 *man/pbc.Rd
 9901462c362bbabff8de38b6c1e88dce *man/plot-survfitJM.Rd
@@ -81,4 +82,4 @@ a98620af7fad69be5f11f65bbdeb0621 *man/plot.Rd
 a0e984b22f96aac0ef8abb4096e853e1 *man/predict.Rd
 fc08671715beac9808c4fd8ed275e057 *man/prothro.Rd
 363ab89df06e73a7a00717844d3d8738 *man/ranef.Rd
-9cd484fa6d1637aec92f35bc2191b159 *man/survfitJM.Rd
+d63bc164edbf4ec6b9d87adff400917e *man/survfitJM.Rd
