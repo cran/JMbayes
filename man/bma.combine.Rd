@@ -9,11 +9,12 @@
 }
 
 \usage{
-bma.combine(\dots)
+bma.combine(\dots, weights)
 } 
 
 \arguments{
   \item{\dots}{objects inheriting from class \code{survfit.JMbayes} or \code{predict.JMbayes}.}
+  \item{weights}{a numeric vector of weights to be applied in each object.}
 }
 
 \value{

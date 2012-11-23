@@ -1,7 +1,8 @@
 predict.JMbayes <-
 function (object, newdata, type = c("Marginal", "Subject"),
     interval = c("none", "confidence", "prediction"), level = 0.95, idVar = "id", 
-    FtTimes = NULL, M = 300, returnData = FALSE, scale = 1.6, weight = 1, ...) {
+    FtTimes = NULL, M = 300, returnData = FALSE, scale = 1.6, 
+    weight = rep(1, nrow(newdata)), ...) {
     if (!inherits(object, "JMbayes"))
         stop("Use only with 'JMbayes' objects.\n")
     if (!is.data.frame(newdata) || nrow(newdata) == 0)
@@ -142,9 +143,7 @@ function (object, newdata, type = c("Marginal", "Subject"),
         obs.times.surv <- split(data.id[[timeVar]], idT)
         survMats.last <- vector("list", n.tp)
         for (i in seq_len(n.tp)) {
-            survMats.last[[i]] <- ModelMats(last.time[i], ii = i,
-                obs.times = obs.times.surv, 
-                survTimes = unlist(times.to.pred, use.names = FALSE))
+            survMats.last[[i]] <- ModelMats(last.time[i], ii = i)
         }
         data.id2 <- newdata[!duplicated(id), ]
         data.id2 <- data.id2[rep(1:nrow(data.id2), 
@@ -238,12 +237,12 @@ function (object, newdata, type = c("Marginal", "Subject"),
                 Zpred.i <- Zpred[id2 == i, , drop = FALSE]
                 mu.i <- as.vector(c(Xpred.i %*% betas.new) + 
                     rowSums(Zpred.i * rep(b.new[i, ], each = nrow(Zpred.i))))
-                y.new[[i]] <- if (interval == "confidence") weight * mu.i else 
+                y.new[[i]] <- if (interval == "confidence") weight[i] * mu.i else 
                     if (interval == "prediction") {
                         if (!robust) 
-                            weight * rnorm(length(mu.i), mu.i, sigma.new)
+                            weight[i] * rnorm(length(mu.i), mu.i, sigma.new)
                         else
-                            weight * rgt(length(mu.i), mu.i, sigma.new, df)
+                            weight[i] * rgt(length(mu.i), mu.i, sigma.new, df)
                     }
             }
             b.old <- b.new
@@ -253,7 +252,7 @@ function (object, newdata, type = c("Marginal", "Subject"),
         for (i in seq_len(n.tp)) {
             oo[[i]] <- do.call(rbind, sapply(res, "[", i))
         }
-        out <- weight * as.vector(c(Xpred %*% betas) + 
+        out <- weight[i] * as.vector(c(Xpred %*% betas) + 
             rowSums(Zpred * modes.b[id2, , drop = FALSE]))
         if (interval %in% c("confidence", "prediction")) {
             alpha <- 1 - level

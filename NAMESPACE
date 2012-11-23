@@ -1,5 +1,5 @@
 # Exported functions
-export(bma.combine, coef.JMbayes, dbs, dns, fixef.JMbayes, jointModelBayes, 
+export(bma.combine, marglogLik, coef.JMbayes, dbs, dns, fixef.JMbayes, jointModelBayes, 
 	ibs, ins, logLik.JMbayes, plot.JMbayes, plot.survfit.JMbayes, predict.JMbayes, ranef.JMbayes, 
 	survfitJM)
 

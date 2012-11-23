@@ -1,5 +1,5 @@
 ModelMats <-
-function (time, ii, obs.times, survTimes) {
+function (time, ii) {
     id.GK <- rep(ii, each = 15)
     wk <- gaussKronrod()$wk
     sk <- gaussKronrod()$sk

@@ -16,6 +16,8 @@ joint model for longitudinal and time-to-event data. Objects of this class have 
   \item{codaFit}{a list of class \code{mcmc.list} with the MCMC samples for each parameter, except from the random effects.}
   \item{postMeans}{a numeric matrix with the posterior means for the random effects of each subject.}
   \item{postVars}{a list with the posterior variance-covariance matrix for the random effects of each subject.}
+  \item{modes}{a numeric vector with the approximate posterior modes for each parameter 
+	(calculated via \code{density(..., bw = "nrd", adjust = 3, n = 1000))}.}
   \item{DIC}{the DIC value.}
   \item{pD}{the pD value.}
   \item{coefficients}{a list with the posterior means for the model's parameters. The components of this list are:

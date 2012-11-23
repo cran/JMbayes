@@ -1,6 +1,6 @@
 survfitJM.JMbayes <-
 function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL, 
-            last.time = NULL, M = 200, CI.levels = c(0.025, 0.975), scale = 1.6, weight = 1, ...) {
+            last.time = NULL, M = 200, CI.levels = c(0.025, 0.975), scale = 1.6, weight = rep(1, nrow(newdata)), ...) {
     if (!inherits(object, "JMbayes"))
         stop("Use only with 'JMbayes' objects.\n")
     if (!is.data.frame(newdata) || nrow(newdata) == 0)
@@ -107,10 +107,8 @@ function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL,
     obs.times.surv <- split(data.id[[timeVar]], idT)
     survMats <- survMats.last <- vector("list", n.tp)
     for (i in seq_len(n.tp)) {
-        survMats[[i]] <- lapply(times.to.pred[[i]], ModelMats, ii = i,
-            obs.times = obs.times.surv, survTimes = survTimes)
-        survMats.last[[i]] <- ModelMats(last.time[i], ii = i, 
-            obs.times = obs.times.surv, survTimes = survTimes)
+        survMats[[i]] <- lapply(times.to.pred[[i]], ModelMats, ii = i)
+        survMats.last[[i]] <- ModelMats(last.time[i], ii = i)
     }
     # calculate the Empirical Bayes estimates and their (scaled) variance
     modes.b <- matrix(0, n.tp, ncz)
@@ -142,7 +140,7 @@ function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL,
             S.pred <- numeric(length(times.to.pred[[i]]))
             for (l in seq_along(S.pred))
                 S.pred[l] <- S.b(times.to.pred[[i]][l], modes.b[i, ], i, survMats[[i]][[l]])
-            res[[i]] <- cbind(times = times.to.pred[[i]], predSurv = weight * S.pred / S.last)
+            res[[i]] <- cbind(times = times.to.pred[[i]], predSurv = weight[i] * S.pred / S.last)
             rownames(res[[i]]) <- seq_along(S.pred) 
         }
     } else {
@@ -204,7 +202,7 @@ function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL,
                 S.pred <- numeric(length(times.to.pred[[i]]))
                 for (l in seq_along(S.pred))
                     S.pred[l] <- S.b(times.to.pred[[i]][l], b.new[i, ], i, survMats[[i]][[l]])
-                SS[[i]] <- weight * S.pred / S.last
+                SS[[i]] <- weight[i] * S.pred / S.last
             }
             b.old <- b.new
             out[[m]] <- SS

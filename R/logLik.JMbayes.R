@@ -1,5 +1,6 @@
 logLik.JMbayes <-
-function (object, thetas, b, priors = TRUE, marginal.b = TRUE, full.Laplace = FALSE, ...) {
+function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas = FALSE, 
+        full.Laplace = FALSE, useModes = TRUE, ...) {
     if (!inherits(object, "JMbayes"))
         stop("'object' must inherit from class JMbayes.")
     if (missing(thetas))
@@ -155,6 +156,15 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, full.Laplace = FA
             logPrior <- logPrior + log.Bs.gammas
         }
         logLik <- logLik + logPrior
+    }
+    if (marginal.thetas) {
+        tht <- if (useModes) object$modes else object$coefficients
+        lL <- logLik(object, thetas = tht)
+        var.thetas <- hessian.JMbayes(object, thetas = tht)
+        tht$D <- tht$D[lower.tri(tht$D, TRUE)]
+        nthetas <- length(unlist(tht))
+        logLik <- 0.5 * nthetas * log(2 * pi) - 
+            0.5 * determinant(var.thetas)$modulus + lL
     }
     out <- as.vector(logLik)
     attr(out, "df") <- nrow(object$vcov)

@@ -80,7 +80,7 @@ jointModelBayes(lmeObject, survObject, timeVar,
         \item{n.chains}{integer specifying the number of chains; default is 1.}
         \item{n.iter}{integer specifying the total number of iterations; default is 10000.}
         \item{n.burnin}{integer specifying how many of \code{n.iter} to discard as burn-in; default is 5000.}
-        \item{n.thin}{integer specifying the thinning in each chain; default is 5.}
+        \item{n.thin}{integer specifying the thinning in each chain; default is 1.}
         \item{n.adapt}{integer specifying the number of iterations to use for adaptation; used only when \code{program = "JAGS"}
             and default is 1000.}
         \item{K}{integer used as the prior precision in the normal prior for the fixed effects, the regression coefficients of the survival submodel, 

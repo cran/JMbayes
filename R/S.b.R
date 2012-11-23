@@ -35,6 +35,8 @@ function (t, b, ii, Mats) {
         W2s <- splineDesign(unlist(kn, use.names = FALSE), st, 
             ord = object$control$ordSpline, outer.ok = TRUE)
         Vi <- exp(c(W2s %*% Bs.gammas.new) + tt)
+        ind <- Mats$st < min(kn)
+        wk[ind] <- 0
         idT <- rep(seq_along(P), each = 15)
         - sum(exp(eta.tw) * P * tapply(wk * Vi, idT, sum))
     }

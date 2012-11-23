@@ -12,7 +12,7 @@
 
 \usage{
 \method{logLik}{JMbayes}(object, thetas, b, priors = TRUE, marginal.b = TRUE, 
-    full.Laplace = FALSE, \dots)
+    marginal.thetas = FALSE, full.Laplace = FALSE, useModes = TRUE, \dots)
 } 
 
 \arguments{
@@ -24,9 +24,12 @@
   \item{priors}{logical, if \code{TRUE} the priors are also included in the computation.}
   \item{marginal.b}{logical, if \code{TRUE} the marginal log-likelihood over the random effects is returned.
     This marginalization is done using a Laplace approximation.}
+  \item{marginal.thetas}{logical, if \code{TRUE} the marginal log-likelihood over the parameters is returned.
+    This marginalization is done using a Laplace approximation.}
   \item{full.Laplace}{logical, if \code{FALSE} the posterior means and posterior variances are used in the Laplace
     approximation instead of the posterior modes and posterior hessian matrix of the random effects. Sacrificing a bit of
     accuracy, this will be much faster than calculating the posterior modes. Relevant only when \code{marginal.b = TRUE}.}
+  \item{useModes}{logical, if \code{TRUE} the modes are used in the Laplace approximation otherwise the means.}
   \item{\dots}{extra arguments; currently none is used.}
 }
 

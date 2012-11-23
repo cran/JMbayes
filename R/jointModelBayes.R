@@ -69,7 +69,7 @@ function (lmeObject, survObject, timeVar, survMod = c("weibull-PH", "spline-PH")
     offset <- as.vector(c(1, 1 + cumsum(tapply(id, id, length))))
     # control values
     con <- list(program = "JAGS", n.chains = 1, n.iter = 10000, n.burnin = 5000, 
-        n.thin = 5, n.adapt = 1000, K = 100, C = 5000, working.directory = getwd(), 
+        n.thin = 1, n.adapt = 1000, K = 100, C = 5000, working.directory = getwd(), 
         bugs.directory = "C:/Program Files/WinBUGS14/", openbugs.directory = NULL, 
         clearWD = TRUE, over.relax = TRUE, knots = NULL, ObsTimes.knots = TRUE, 
         lng.in.kn = 5, ordSpline = 4, bugs.seed = 1, quiet = FALSE)
@@ -432,18 +432,27 @@ function (lmeObject, survObject, timeVar, survMod = c("weibull-PH", "spline-PH")
     colnames(sims.list$D) <- paste("D[", row(VC)[lower.tri(VC, TRUE)], ", ", 
         col(VC)[lower.tri(VC, TRUE)], "]", sep = "") 
     sims.list <- sims.list[!sapply(sims.list, is.null)]
+    out$modes <- lapply(sims.list, function (x) {
+        m <- function (x) {
+            d <- density(x, bw = "nrd", adjust = 3, n = 1000)
+            d$x[which.max(d$y)]
+        }
+        if (is.matrix(x)) apply(x, 2, m) else m(x)
+    })
     out$coefficients <- lapply(sims.list, 
         function (x) if (is.matrix(x)) colMeans(x) else mean(x))
     out$StErr <- lapply(sims.list, 
         function (x) {
             f <- function (x) {
-                acf.x <- drop(acf(x, lag.max = length(x) - 1, plot = FALSE)$acf)[-1]
+                acf.x <- drop(acf(x, lag.max = 0.4*length(x), plot = FALSE)$acf)[-1]
                 acf.x <- acf.x[seq_len(rle(acf.x > 0)$lengths[1])]
-                ess <- 1 + 2 * sum(acf.x)
-                ess * sd(x) / length(x)
+                ess <- length(x) / (1 + 2 * sum(acf.x))
+                sqrt(var(x) / ess)
             }
             if (is.matrix(x)) apply(x, 2, f) else f(x)
     })
+    out$StDev <- lapply(sims.list, function (x) 
+        if (is.matrix(x)) apply(x, 2, sd) else sd(x))
     out$CIs <- lapply(sims.list, 
         function (x) if (is.matrix(x)) apply(x, 2, quantile, probs = c(0.025, 0.975)) 
             else quantile(x, probs = c(0.025, 0.975)))
@@ -454,6 +463,12 @@ function (lmeObject, survObject, timeVar, survMod = c("weibull-PH", "spline-PH")
     diag(D) <- diag(D) / 2
     out$coefficients$D <- D
     dimnames(out$coefficients$D) <- dimnames(VC)
+    D <- matrix(0, nrow(VC), ncol(VC))
+    D[lower.tri(D, TRUE)] <- out$modes$D
+    D <- D + t(D)
+    diag(D) <- diag(D) / 2
+    out$modes$D <- D
+    dimnames(out$modes$D) <- dimnames(VC)    
     if (one.RE) {
         out$coefficients$D <- out$coefficients$D[1, 1, drop = FALSE]
         dimnames(out$coefficients$D) <- list(colnames(Z)[1], colnames(Z)[1])

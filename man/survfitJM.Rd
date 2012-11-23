@@ -15,7 +15,8 @@ survfitJM(object, newdata, \dots)
 
 \method{survfitJM}{JMbayes}(object, newdata, idVar = "id", 
    simulate = TRUE, survTimes = NULL, last.time = NULL, M = 200, 
-   CI.levels = c(0.025, 0.975), scale = 1.6, weight = 1, \dots)
+   CI.levels = c(0.025, 0.975), scale = 1.6, 
+   weight = rep(1, nrow(newdata)), \dots)
 }
 
 \arguments{
@@ -37,7 +38,7 @@ survfitJM(object, newdata, \dots)
   \item{CI.levels}{a numeric vector of length two that specifies which quantiles to use for the calculation of confidence interval for the 
     predicted probabilities -- see \bold{Details}.}
   \item{scale}{a numeric scalar that controls the acceptance rate of the Metropolis-Hastings algorithm -- see \bold{Details}.}
-  \item{weight}{a numeric scalar to be applied as weight to the predictions.}
+  \item{weight}{a numeric vector of weights to be applied to the predictions of each subject.}
   \item{\dots}{additional arguments; currently none is used.}
 }
 

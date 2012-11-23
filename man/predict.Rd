@@ -11,7 +11,8 @@
 \usage{
 \method{predict}{JMbayes}(object, newdata, type = c("Marginal", "Subject"),
     interval = c("none", "confidence", "prediction"), level = 0.95, idVar = "id", 
-    FtTimes = NULL, M = 300, returnData = FALSE, scale = 1.6, weight = 1, \dots)
+    FtTimes = NULL, M = 300, returnData = FALSE, scale = 1.6, 
+    weight = rep(1, nrow(newdata)), \dots)
 }
 
 \arguments{
@@ -38,7 +39,7 @@
   \item{scale}{a numeric value setting the scaling of the covariance matrix
         of the empirical Bayes estimates in the Metropolis step during the 
         Monte Carlo sampling.}
-  \item{weight}{a numeric scalar to be applied as weight to the predictions.}
+  \item{weight}{a numeric vector of weights to be applied to the predictions of each subject.}
   \item{\dots}{additional arguments; currently none is used.}
 }
 
