@@ -7,7 +7,7 @@ function (b, y, Mats, survMod, ii) {
     mu.y <- as.vector(X.i %*% betas.new) + rowSums(Z.i * rep(b, each = nrow(Z.i)))
     logY <- if (!robust) dnorm(y[id.i], mu.y, sigma.new, TRUE) else dgt(y[id.i], mu.y, sigma.new, df, TRUE)
     log.p.yb <- sum(logY)
-    log.p.b <- dmvnorm(b, rep(0, ncol(Z)), D.new, TRUE)
+    log.p.b <- if (!robust.b) dmvnorm(b, rep(0, ncol(Z)), D.new, TRUE) else dmvt(b, rep(0, ncol(Z)), D.new, df.b, TRUE)
     st <- Mats[[ii]]$st
     wk <- Mats[[ii]]$wk
     P <- Mats[[ii]]$P

@@ -10,7 +10,9 @@ function (object, newdata, idVar = "id", method = "BFGS", control = NULL) {
     timeVar <- object$timeVar
     interFact <- object$interFact
     robust <- object$robust
+    robust.b <- object$robust.b
     df <- object$df
+    df.b <- object$df.b
     param <- object$param
     extraForm <- object$extraForm
     indFixed <- extraForm$indFixed
@@ -116,7 +118,7 @@ function (object, newdata, idVar = "id", method = "BFGS", control = NULL) {
         mu.y <- as.vector(X.i %*% betas) + rowSums(Z.i * rep(b, each = nrow(Z.i)))
         logY <- if (!robust) dnorm(y[id.i], mu.y, sigma, TRUE) else dgt(y[id.i], mu.y, sigma, df, TRUE)
         log.p.yb <- sum(logY)
-        log.p.b <- dmvnorm(b, rep(0, ncol(Z)), D, TRUE)
+        log.p.b <- if (!robust.b) dmvnorm(b, rep(0, ncol(Z)), D, TRUE) else dmvt(b, rep(0, ncol(Z)), D, df.b, TRUE)
         st <- survMats.last[[ii]]$st
         wk <- survMats.last[[ii]]$wk
         P <- survMats.last[[ii]]$P

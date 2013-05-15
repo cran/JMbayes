@@ -12,10 +12,15 @@ function (x, digits = max(4, getOption("digits") - 4),
         sum(x$d), " (", pcEv, "%)", sep = "")
     cat("\nNumber of Groups:", length(unique(x$id)))
     cat("\n\nJoint Model Summary:")
-    if (!x$robust) {
+    if (!x$robust && !x$robust.b) {
         cat("\nLongitudinal Process: Linear mixed-effects model")
-    } else {
+    } else if (x$robust && !x$robust.b) {
         cat("\nLongitudinal Process: Linear mixed-effects model with Student's-t(df=", x$df, ") errors", sep = "")
+    } else if (!x$robust && x$robust.b) {
+        cat("\nLongitudinal Process: Linear mixed-effects model with Student's-t(df=", x$df.b, ") random effects", sep = "")
+    } else {
+        cat("\nLongitudinal Process: Linear mixed-effects model with Student's-t(df=", x$df, ") errors and\n\t\t",
+            "Student's-t(df=", x$df.b, ") random effects", sep = "")
     }
     cat("\nEvent Process: ")
     if (x$survMod == "weibull-PH") {

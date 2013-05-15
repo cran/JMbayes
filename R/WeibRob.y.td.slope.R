@@ -1,4 +1,4 @@
-WeibRob.td.slope <-
+WeibRob.y.td.slope <-
 function () {
     for (i in 1:N) {
         # Longitudinal Part

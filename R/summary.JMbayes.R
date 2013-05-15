@@ -42,7 +42,9 @@ function (object, ...) {
     out$conv <- object$conv
     out$param <- object$param
     out$robust <- object$robust
+    out$robust.b <- object$robust.b
     out$df <- object$df
+    out$df.b <- object$df.b
     out$DIC <- object$DIC
     out$pD <- object$pD
     out$logLik <- logLik(object)

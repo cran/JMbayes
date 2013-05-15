@@ -1,7 +1,7 @@
 jointModelBayes <-
 function (lmeObject, survObject, timeVar, survMod = c("weibull-PH", "spline-PH"), 
-        param = c("td-value", "td-extra", "td-both", "shared-RE"), robust = FALSE, df = 4, 
-        lag = 0, init = NULL, extraForm = NULL, priors = NULL, control = list(), ...) {
+        param = c("td-value", "td-extra", "td-both", "shared-RE"), robust = FALSE, robust.b = FALSE, 
+        df = 4, df.b = 4, lag = 0, init = NULL, extraForm = NULL, priors = NULL, control = list(), ...) {
     cl <- match.call()
     if (!inherits(lmeObject, "lme"))
         stop("\n'lmeObject' must inherit from class lme.")
@@ -205,7 +205,7 @@ function (lmeObject, survObject, timeVar, survMod = c("weibull-PH", "spline-PH")
         var.Bs.gammas <- rep(con$K/10, ncW2)
     }
     # Data to be passed to WinBUGS
-    Data <- list(N = nY, df = df, C = con$C, K = K, R = con$R, ncX = ncX, 
+    Data <- list(N = nY, df = df, df.b = df.b, C = con$C, K = K, R = con$R, ncX = ncX, 
         ncZ = ncZ, ncW = ncW, ncW2 = ncW2,
         priorMean.betas = betas, priorTau.betas = diag(1 / var.betas),
         priorA.tau = (1/sigma2)^2 / 10, priorB.tau = (1/sigma2) / 10,
@@ -259,24 +259,43 @@ function (lmeObject, survObject, timeVar, survMod = c("weibull-PH", "spline-PH")
         }
     }
     # joint model fit
-    model <- switch(paste(survMod, param, robust, sep = "/"),
-        "weibull-PH/td-value/FALSE" = Weib.td.value,
-        "weibull-PH/td-extra/FALSE" = Weib.td.slope,
-        "weibull-PH/td-both/FALSE" = Weib.td.both,
-        "weibull-PH/shared-RE/FALSE" = Weib.sharedRE,
-        "spline-PH/td-value/FALSE" = spline.td.value,
-        "spline-PH/td-extra/FALSE" = spline.td.slope,
-        "spline-PH/td-both/FALSE" = spline.td.both,
-        "spline-PH/shared-RE/FALSE" = spline.sharedRE,
-        "weibull-PH/td-value/TRUE" = WeibRob.td.value,
-        "weibull-PH/td-extra/TRUE" = WeibRob.td.slope,
-        "weibull-PH/td-both/TRUE" = WeibRob.td.both,
-        "weibull-PH/shared-RE/TRUE" = WeibRob.sharedRE,
-        "spline-PH/td-value/TRUE" = splineRob.td.value,
-        "spline-PH/td-extra/TRUE" = splineRob.td.slope,
-        "spline-PH/td-both/TRUE" = splineRob.td.both,
-        "spline-PH/shared-RE/TRUE" = splineRob.sharedRE)
-    namesModel <- namesJMbayes(survMod, param, robust)
+    model <- switch(paste(survMod, param, robust, robust.b, sep = "/"),
+        "weibull-PH/td-value/FALSE/FALSE" = Weib.td.value,
+        "weibull-PH/td-extra/FALSE/FALSE" = Weib.td.slope,
+        "weibull-PH/td-both/FALSE/FALSE" = Weib.td.both,
+        "weibull-PH/shared-RE/FALSE/FALSE" = Weib.sharedRE,
+        "spline-PH/td-value/FALSE/FALSE" = spline.td.value,
+        "spline-PH/td-extra/FALSE/FALSE" = spline.td.slope,
+        "spline-PH/td-both/FALSE/FALSE" = spline.td.both,
+        "spline-PH/shared-RE/FALSE/FALSE" = spline.sharedRE,
+        ###            
+        "weibull-PH/td-value/TRUE/FALSE" = WeibRob.y.td.value,
+        "weibull-PH/td-extra/TRUE/FALSE" = WeibRob.y.td.slope,
+        "weibull-PH/td-both/TRUE/FALSE" = WeibRob.y.td.both,
+        "weibull-PH/shared-RE/TRUE/FALSE" = WeibRob.y.sharedRE,
+        "spline-PH/td-value/TRUE/FALSE" = splineRob.y.td.value,
+        "spline-PH/td-extra/TRUE/FALSE" = splineRob.y.td.slope,
+        "spline-PH/td-both/TRUE/FALSE" = splineRob.y.td.both,
+        "spline-PH/shared-RE/TRUE/FALSE" = splineRob.y.sharedRE,
+        ###
+        "weibull-PH/td-value/FALSE/TRUE" = WeibRob.b.td.value,
+        "weibull-PH/td-extra/FALSE/TRUE" = WeibRob.b.td.slope,
+        "weibull-PH/td-both/FALSE/TRUE" = WeibRob.b.td.both,
+        "weibull-PH/shared-RE/FALSE/TRUE" = WeibRob.b.sharedRE,
+        "spline-PH/td-value/FALSE/TRUE" = splineRob.b.td.value,
+        "spline-PH/td-extra/FALSE/TRUE" = splineRob.b.td.slope,
+        "spline-PH/td-both/FALSE/TRUE" = splineRob.b.td.both,
+        "spline-PH/shared-RE/FALSE/TRUE" = splineRob.b.sharedRE,
+        ###            
+        "weibull-PH/td-value/TRUE/TRUE" = WeibRob.yb.td.value,
+        "weibull-PH/td-extra/TRUE/TRUE" = WeibRob.yb.td.slope,
+        "weibull-PH/td-both/TRUE/TRUE" = WeibRob.yb.td.both,
+        "weibull-PH/shared-RE/TRUE/TRUE" = WeibRob.yb.sharedRE,
+        "spline-PH/td-value/TRUE/TRUE" = splineRob.yb.td.value,
+        "spline-PH/td-extra/TRUE/TRUE" = splineRob.yb.td.slope,
+        "spline-PH/td-both/TRUE/TRUE" = splineRob.yb.td.both,
+        "spline-PH/shared-RE/TRUE/TRUE" = splineRob.yb.sharedRE)
+    namesModel <- namesJMbayes(survMod, param, robust, robust.b)
     parms <- c("betas", "tau", "inv.D", "gammas", "b")
     parms <- switch(paste(survMod, param, sep = "/"),
         "weibull-PH/td-value" = c(parms, "alphas", "sigma.t"),
@@ -364,9 +383,10 @@ function (lmeObject, survObject, timeVar, survMod = c("weibull-PH", "spline-PH")
         n <- length(y$logT)
         mu.y <- c(x$X %*% betas) + rowSums(x$Z * b[id, , drop = FALSE])
         log.p.y.b <- if (!robust) dnorm(y$y, mu.y, sigma, log = TRUE) 
-            else dgt(y, mu.y, sigma, df, log = TRUE)
+            else dgt(y$y, mu.y, sigma, df, log = TRUE)
         log.p.y.b <- tapply(log.p.y.b, id, sum)
-        log.p.b <- dmvnorm(b, rep(0, ncol(b)), D, log = TRUE)
+        log.p.b <- if (!robust.b) dmvnorm(b, rep(0, ncol(b)), D, log = TRUE)
+            else dmvt(b, rep(0, ncol(b)), D, df.b, log = TRUE)
         eta.t <- if (!is.null(gammas)) c(x$W %*% rep(gammas, length.out = ncol(x$W))) 
             else rep(0, n)
         id.GK <- rep(seq_along(y$logT), each = 15)
@@ -524,7 +544,9 @@ function (lmeObject, survObject, timeVar, survMod = c("weibull-PH", "spline-PH")
     out$param <- param
     out$extraForm <- extraForm
     out$robust <- robust
+    out$robust.b <- robust.b
     out$df <- df
+    out$df.b <- df.b
     out$priors <- Data[grep("prior", names(Data), fixed = TRUE)]
     out$call <- cl
     class(out) <- "JMbayes"

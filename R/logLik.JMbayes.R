@@ -17,8 +17,10 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas =
     survMod <- object$survMod
     timeVar <- object$timeVar
     robust <- object$robust
+    robust.b <- object$robust.b
     lag <- object$y$lag
     df <- object$df
+    df.b <- object$df.b
     param <- object$param
     indFixed <- object$extraForm$indFixed
     indRandom <- object$extraForm$indRandom
@@ -98,7 +100,8 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas =
             log.p.y.b + log.p.t.b
     }
     logLik <- if (!marginal.b) {
-        log.p.b <- dmvnorm(b, rep(0, ncol(b)), D, log = TRUE)
+        log.p.b <- if (!robust.b) dmvnorm(b, rep(0, ncol(b)), D, log = TRUE)
+            else dmvt(b, rep(0, ncol(b)), D, df.b, log = TRUE)
         sum(h(b) + log.p.b, na.rm = TRUE)
     } else {
         mean.b <- ranef(object)
@@ -107,7 +110,8 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas =
             optFun <- function (b, id) {
                 b. <- ranef(object)
                 b.[id, ] <- b
-                log.p.b <- dmvnorm(b., rep(0, ncol(b.)), D, log = TRUE)
+                log.p.b <- if (!robust.b) dmvnorm(b., rep(0, ncol(b.)), D, log = TRUE)
+                    else dmvt(b., rep(0, ncol(b.)), D, df.b, log = TRUE)
                 - h(b., id) - log.p.b[id] 
             }
             for (i in seq_len(n)) {
@@ -117,7 +121,8 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas =
                 var.b[[i]] <- solve(opt$hessian)
             }
         }
-        log.p.b <- dmvnorm(mean.b, rep(0, ncol(b)), D, log = TRUE)
+        log.p.b <- if (!robust.b) dmvnorm(mean.b, rep(0, ncol(b)), D, log = TRUE)
+            else dmvt(mean.b, rep(0, ncol(b)), D, df.b, log = TRUE)
         log.dets.var.b <- sapply(var.b, function (x) determinant(x)$modulus)
         sum(0.5 * ncol(b) * log(2 * pi) + 0.5 * log.dets.var.b + 
             h(mean.b) + log.p.b, na.rm = TRUE)

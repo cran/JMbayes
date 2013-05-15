@@ -17,8 +17,8 @@ provided.
 \tabular{ll}{
 Package: \tab JMbayes\cr
 Type: \tab Package\cr
-Version: \tab 0.3-0\cr
-Date: \tab 2012-11-23\cr
+Version: \tab 0.4-0\cr
+Date: \tab 2013-05-15\cr
 License: \tab GPL (>=2)\cr
 }
 
@@ -77,7 +77,10 @@ Wulfsohn, M. and Tsiatis, A. (1997) A joint model for survival and longitudinal 
 
 \seealso{
     \code{\link{jointModelBayes}},
-    \code{\link{survfitJM.JMbayes}},
+    \code{\link{survfitJM}},
+    \code{\link{aucJM}},
+    \code{\link{dynCJM}},
+    \code{\link{prederrJM}},
     \code{\link{predict.JMbayes}},
     \code{\link{logLik.JMbayes}}
 }

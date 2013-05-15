@@ -13,8 +13,8 @@ Fits shared parameter joint models for longitudinal and survival outcomes under 
 jointModelBayes(lmeObject, survObject, timeVar, 
     survMod = c("weibull-PH", "spline-PH"), 
     param = c("td-value", "td-extra", "td-both", "shared-RE"), 
-    robust = FALSE, df = 4, lag = 0, init = NULL, extraForm = NULL, 
-    priors = NULL, control = list(), ...)
+    robust = FALSE, robust.b = FALSE, df = 4, df.b = 4, lag = 0, init = NULL, 
+    extraForm = NULL, priors = NULL, control = list(), ...)
 }
 
 \arguments{
@@ -25,7 +25,9 @@ jointModelBayes(lmeObject, survObject, timeVar,
   \item{param}{a character string specifying the type of association structure between the longitudinal and 
         survival processes. See \bold{Details}.}
   \item{robust}{logical, if \code{TRUE} the linear mixed model is assumed to have a Student's-\eqn{t} errors distribution. See \bold{Details}.}
-  \item{df}{a scalar denoting the number of degrees of freedom for the Student's-\eqn{t} error distribution for the mixed model.}
+  \item{robust.b}{logical, if \code{TRUE} the random effects are assumed to have a Student's-\eqn{t} distribution. See \bold{Details}.}
+  \item{df}{a numeric scalar denoting the number of degrees of freedom for the Student's-\eqn{t} error distribution for the mixed model.}
+  \item{df.b}{a numeric scalar denoting the number of degrees of freedom for the Student's-\eqn{t} random-effects distribution.}
   \item{lag}{a numeric scalar denoting a lag effect in the time-dependent covariate represented by the mixed model; default is 0.}
   \item{init}{a named list of user-specified initial values:
     \describe{
@@ -48,7 +50,7 @@ jointModelBayes(lmeObject, survObject, timeVar,
     \code{indFixed} a numeric vector indicating which fixed effects of \code{lmeObject} are involved in the user-defined term, 
     \code{random} a formula representing the random-effects part of the user-defined term, and \code{indRamdom} a numeric vector 
     indicating which random effects of \code{lmeObject} are involved in the user-defined term. Required only when 
-    \code{param == "td-extra"} or \code{param == "td-both"}. See \bold{Examples}.}
+    \code{param = "td-extra"} or \code{param = "td-both"}. See \bold{Examples}.}
   \item{priors}{a named list of user-specified prior parameters:
     \describe{
         \item{priorMean.betas}{the prior mean vector of the normal prior for the fixed effects of the linear mixed effects model.}
@@ -110,8 +112,9 @@ jointModelBayes(lmeObject, survObject, timeVar,
 Function \code{jointModelBayes} fits joint models for longitudinal and survival data under a Bayesian approach using WinBUGS, OpenBUGS or JAGS. 
 For the longitudinal responses the linear mixed effects model represented by the \code{lmeObject} is assumed. If argument \code{robust} is set to 
 \code{TRUE}, then linear mixed effects model fitted by \code{jointModelBayes} has the same fixed- and random-effects structure as in \code{lmeObject},
-but the error terms distribution is assumed to be Student's-\eqn{t} with \code{df} degrees of freedom (the random effects distribution is always assumed 
-multivariate normal). For the survival times, let \eqn{w_i} denote the vector of baseline covariates in \code{survObject}, with associated parameter 
+but the error terms distribution is assumed to be Student's-\eqn{t} with \code{df} degrees of freedom. If argument \code{robust.b} is set to 
+\code{TRUE}, then the random-effects distribution is assumed to be a multivariate Student's-\eqn{t} with \code{df.b} degrees of freedom (when \code{FALSE} it is 
+assumed to be a multivariate normal). For the survival times, let \eqn{w_i} denote the vector of baseline covariates in \code{survObject}, with associated parameter 
 vector \eqn{\gamma}, \eqn{m_i(t)} the value of the longitudinal outcome at time point \eqn{t} as approximated by the linear mixed model (i.e., \eqn{m_i(t)} equals the 
 fixed-effects part \code{+} random-effects part of the linear mixed effects model for sample unit \eqn{i}), \eqn{m_i'(t)} denotes an extra user-defined term to be
 included in the linear predictor, and \eqn{\alpha} and \eqn{\alpha_d} vector of association parameters for \eqn{m_i(t)} and \eqn{m_i'(t)}, respectively. Then, \code{jointModelBayes}
@@ -161,7 +164,10 @@ Dimitris Rizopoulos \email{d.rizopoulos@erasmusmc.nl}
 \code{\link{coef.JMbayes}},
 \code{\link{ranef.JMbayes}}, 
 \code{\link{logLik.JMbayes}}, 
-\code{\link{survfitJM.JMbayes}}, 
+\code{\link{survfitJM}},
+\code{\link{aucJM}},
+\code{\link{dynCJM}},
+\code{\link{prederrJM}}, 
 \code{\link{predict.JMbayes}}
 }
 

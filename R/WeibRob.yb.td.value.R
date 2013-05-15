@@ -1,4 +1,4 @@
-WeibRob.td.both <-
+WeibRob.yb.td.value <-
 function () {
     for (i in 1:N) {
         # Longitudinal Part
@@ -9,18 +9,16 @@ function () {
         # Survival Part
         etaBaseline[i] <- inprod(gammas[1:ncW], W[i, 1:ncW])
         f.T[i] <- inprod(betas[1:ncX], Xtime[i, 1:ncX]) + inprod(b[i, 1:ncZ], Ztime[i, 1:ncZ])
-        f.T.deriv[i] <- inprod(betas[indFixed], Xtime.deriv[i, 1:ncX.deriv]) + inprod(b[i, indRandom], Ztime.deriv[i, 1:ncZ.deriv])
-        log.hazard[i] <- log(sigma.t) + (sigma.t - 1) * logTime[i] + etaBaseline[i] + alphas * f.T[i] + Dalphas * f.T.deriv[i]
+        log.hazard[i] <- log(sigma.t) + (sigma.t - 1) * logTime[i] + etaBaseline[i] + alphas * f.T[i]
         for (k in 1:K) {
             f.s[i, k] <- inprod(betas[1:ncX], Xs[K*(i - 1) + k, 1:ncX]) + inprod(b[i, 1:ncZ], Zs[K*(i - 1) + k, 1:ncZ])
-            f.s.deriv[i, k] <- inprod(betas[indFixed], Xs.deriv[K*(i - 1) + k, 1:ncX.deriv]) + inprod(b[i, indRandom], Zs.deriv[K*(i - 1) + k, 1:ncZ.deriv])
-            SurvLong[i, k] <- wk[k] * sigma.t * pow(st[i, k], sigma.t - 1) * exp(alphas * f.s[i, k] + Dalphas * f.s.deriv[i, k])
+            SurvLong[i, k] <- wk[k] * sigma.t * pow(st[i, k], sigma.t - 1) * exp(alphas * f.s[i, k])
         }
         log.survival[i] <- - exp(etaBaseline[i]) * P[i] * sum(SurvLong[i, ])
         phi[i] <- C - (event[i] * log.hazard[i]) - log.survival[i]
         zeros[i] ~ dpois(phi[i])
         # Random Effects Part
-        b[i, 1:nb] ~ dmnorm(mu0[], inv.D[, ])
+        b[i, 1:nb] ~ dmt(mu0[], inv.D[, ], df.b)
     }
     # Priors
     # Longitudinal Part
@@ -29,7 +27,6 @@ function () {
     # Survival Part
     gammas[1:ncW] ~ dmnorm(priorMean.gammas[], priorTau.gammas[, ])
     alphas ~ dnorm(priorMean.alphas, priorTau.alphas)
-    Dalphas ~ dnorm(priorMean.Dalphas, priorTau.Dalphas)
     sigma.t ~ dgamma(priorA.sigma.t, priorB.sigma.t)
     # Random Effects Part
     inv.D[1:nb, 1:nb] ~ dwish(priorR.D[, ], priorK.D)

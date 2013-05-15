@@ -14,7 +14,9 @@ function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL,
     timeVar <- object$timeVar
     interFact <- object$interFact
     robust <- object$robust
+    robust.b <- object$robust.b
     df <- object$df
+    df.b <- object$df.b
     param <- object$param
     extraForm <- object$extraForm
     indFixed <- extraForm$indFixed

@@ -93,7 +93,8 @@ Rizopoulos, D. (2011). Dynamic predictions and prospective accuracy in joint mod
 \author{Dimitris Rizopoulos \email{d.rizopoulos@erasmusmc.nl}}
 
 
-\seealso{\code{\link{plot.survfit.JMbayes}}, \code{\link{predict.JMbayes}}, \code{\link{jointModelBayes}}}
+\seealso{\code{\link{plot.survfit.JMbayes}}, \code{\link{predict.JMbayes}}, 
+\code{\link{aucJM}}, \code{\link{dynCJM}}, \code{\link{prederrJM}}, \code{\link{jointModelBayes}}}
 
 \examples{
 \dontrun{

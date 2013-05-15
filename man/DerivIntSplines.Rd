@@ -32,7 +32,7 @@ ibs(x, df = NULL, knots = NULL, intercept = FALSE,
   \item{eps}{a numeric scalar denoting the step length for the central difference approximation, which
             calculates the derivative.}
   \item{from}{a numeric scalar denoting the lower limit of the integral.}
-  \item{weight.fun}{a function to applied as weights.}
+  \item{weight.fun}{a function to be applied as weights.}
   \item{\dots}{extra arguments passed to \code{weight.fun}.}
 }
 

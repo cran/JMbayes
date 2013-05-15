@@ -1,4 +1,4 @@
-WeibRob.sharedRE <-
+WeibRob.yb.sharedRE <-
 function () {
     for (i in 1:N) {
         # Longitudinal Part
@@ -14,7 +14,7 @@ function () {
     }
     # Priors
     # Longitudinal Part
-    betas[1:ncX] ~ dmnorm(priorMean.betas[], priorTau.betas[, ])
+    betas[1:ncX] ~ dmt(priorMean.betas[], priorTau.betas[, ], df.b)
     tau ~ dgamma(priorA.tau, priorB.tau)
     # Survival Part
     gammas[1:ncW] ~ dmnorm(priorMean.gammas[], priorTau.gammas[, ])

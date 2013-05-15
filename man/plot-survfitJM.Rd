@@ -15,7 +15,7 @@
     add.last.time.axis.tick = FALSE, include.y = FALSE, main = NULL, 
     xlab = NULL, ylab = NULL, ylab2 = NULL, lty = NULL, col = NULL, 
     lwd = NULL, pch = NULL, ask = NULL, legend = FALSE, \dots,
-    cex.axis.z = 1, cex.lab.z = 1)
+    cex.axis.z = 1, cex.lab.z = 1, xlim = NULL)
 }
 
 \arguments{
@@ -46,6 +46,7 @@
   \item{ask}{logical; if \code{TRUE}, the user is asked before each plot, see \code{par()}.}
   \item{legend}{logical; if \code{TRUE}, a legend is included in the plot.}
   \item{cex.axis.z, cex.lab.z}{the par \code{cex} argument for the axis at side 4, when \code{include.y = TRUE}.}
+  \item{xlim}{the par \code{xlim} argument.}
   \item{\dots}{extra graphical parameters passed to \code{plot()}.}
 }
 

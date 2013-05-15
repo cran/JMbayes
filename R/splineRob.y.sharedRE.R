@@ -1,4 +1,4 @@
-splineRob.sharedRE <-
+splineRob.y.sharedRE <-
 function () {
     for (i in 1:N) {
         # Longitudinal Part

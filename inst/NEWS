@@ -1,3 +1,24 @@
+Changes in version: JMbayes_0.4-0
+
+  * the new function bma.combine() combines predictions using Bayesian model averaging.
+
+  * logLik.JMbayes() can now calculate marginal log-likelihoods averaging over the random effects and the parameters.
+
+  * the new function marglogLik() calculates marginal likelihood contributions for individual subjects.
+
+  * the new generic function aucJM() calculates time-dependent AUCs for joint models.
+
+  * the new generic function dynCJM() calculates a dynamic discrimination index 
+    (weighted average of time-dependent AUCs) for joint models.
+
+  * the new generic function prederrJM() calculates prediction errors for joint models.
+
+  * jointModelBayes() can now fit robust joint models in which both the error terms for the longitudinal outcome
+    and the random effects are assumed to follow a Student's t distribution. This is controled by the arguments
+    'robust' and 'df' for the error terms, and 'robust.b' and 'df.b' for the random effects.
+
+---------------------------------------
+
 Changes in version: JMbayes_0.2-0
 
   * the new control argument 'ordSpline' sets the order of the spline for the B-spline basis (i.e.,
