@@ -1,5 +1,7 @@
 dynCJM.coxph <-
-function (object, newdata, Dt, idVar = "id", t.max = NULL, timeVar = "time", weightFun = NULL, ...) {
+function (object, newdata, Dt, idVar = "id", t.max = NULL, timeVar = "time", 
+                          weightFun = NULL, respVar = "y", evTimeVar = "Time",
+                          summary = c("value", "slope", "area"), tranfFun = function (x) x, ...) {
     if (!inherits(object, "coxph"))
         stop("Use only with 'coxph' objects.\n")
     if (!is.data.frame(newdata) || nrow(newdata) == 0)
@@ -10,6 +12,7 @@ function (object, newdata, Dt, idVar = "id", t.max = NULL, timeVar = "time", wei
         stop("'Dt' must be a numeric scalar.\n")
     if (!is.null(weightFun) && !is.function(weightFun))
         stop("'weightFun' must be a function.\n")
+    newdata$area <- newdata$slope <- 0
     TermsT <- object$terms
     SurvT <- model.response(model.frame(TermsT, newdata)) 
     Time <- SurvT[, 1]
@@ -27,12 +30,16 @@ function (object, newdata, Dt, idVar = "id", t.max = NULL, timeVar = "time", wei
     on.exit(options(old))
     for (i in 1:k) {
         tt <- try({
-            data.i <- newdata[Time > st[i] & newdata[[timeVar]] <= st[i], ]
-            f <- factor(data.i[[idVar]], unique(data.i[[idVar]]))
-            data.i <- data.i[tapply(row.names(data.i), f, tail, 1), ]
+            #data.i <- newdata[Time > st[i] & newdata[[timeVar]] <= st[i], ]
+            #f <- factor(data.i[[idVar]], unique(data.i[[idVar]]))
+            #data.i <- data.i[tapply(row.names(data.i), f, tail, 1), ]
+            data.i <- dataLM(newdata, Tstart = st[i], idVar, respVar, timeVar, evTimeVar,
+                             summary, tranfFun)
             object.i <- coxph(form, data = data.i)
             aucJM(object.i, newdata = newdata, Tstart = st[i], 
-                  Dt = Dt, timeVar = timeVar, idVar = idVar)$auc
+                  Dt = Dt, timeVar = timeVar, idVar = idVar,
+                  respVar = respVar, evTimeVar = evTimeVar,
+                  summary = summary, tranfFun = tranfFun)$auc
         }, TRUE)
         auc.st[i] <- if (!inherits(tt, "try-error")) tt else NA
     }

@@ -13,6 +13,7 @@ function (x, df = NULL, knots = NULL, intercept = FALSE, Boundary.knots = range(
     bs.xeps1 <- suppressWarnings(bs(x1, knots = kn, Boundary.knots = Bkn, intercept = intercept))
     bs.xeps2 <- suppressWarnings(bs(x2, knots = kn, Boundary.knots = Bkn, intercept = intercept))
     out <- (bs.xeps1 - bs.xeps2) / c(x1 - x2)
+    attr(out, "eps") <- eps
     attr(out, "class") <- c("dbs", "basis", "matrix")
     out
 }

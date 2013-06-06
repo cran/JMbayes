@@ -102,7 +102,7 @@ function (lmeObject, survObject, timeVar, survMod = c("weibull-PH", "spline-PH")
         Xtime.deriv <- model.matrix(extraForm$fixed, mfX.deriv.id)
         Ztime.deriv <- model.matrix(extraForm$random, mfZ.deriv.id)
         Xderiv <- model.matrix(extraForm$fixed, mfX.deriv)
-        Zderiv <- model.matrix(extraForm$random, mfZ.deriv)        
+        Zderiv <- model.matrix(extraForm$random, mfZ.deriv)
         long.deriv <- as.vector(c(Xderiv %*% fixef(lmeObject)[extraForm$indFixed]) + 
             if (length(extraForm$indRandom) > 1 || extraForm$indRandom) 
                 rowSums(Zderiv * b[id, extraForm$indRandom, drop = FALSE])

@@ -1,3 +1,15 @@
+Changes in version: JMbayes_0.4-1
+
+  * new versions of functions ins() and ibs() with updated 'weight.fun' argument, and makepredictcall() methods.
+
+  * methods have been added for the fitted() and residuals() generics to calculate fitted values and residuals, 
+    respectively.
+
+  * a method has been added for the xtable() generic from package xtable for producing a LaTeX table with the
+    results of the joint model.
+
+---------------------------------------
+
 Changes in version: JMbayes_0.4-0
 
   * the new function bma.combine() combines predictions using Bayesian model averaging.

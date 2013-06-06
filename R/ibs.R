@@ -18,10 +18,15 @@ function (x, df = NULL, knots = NULL, intercept = FALSE, Boundary.knots = range(
     out <- vector("list", 15)
     for (i in 1:15) {
         out[[i]] <- wk[i] * bs(st[, i], knots = kn, Boundary.knots = Bkn, intercept = intercept)
-        if (!is.null(weight.fun))
-            out[[i]] <- out[[i]] * weight.fun(x - st[, i], ...)
+        if (!is.null(weight.fun)) {
+            ww <- weight.fun(st[, i], x, ...)
+            out[[i]] <- out[[i]] * ifelse(is.finite(ww), ww, 0)
+        }
+            
     }
     out <- P2 * Reduce("+", out)
+    attr(out, "from") <- from
+    attr(out, "weight.fun") <- weight.fun
     attr(out, "class") <- c("ibs", "basis", "matrix")
     out
 }

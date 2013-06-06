@@ -1,7 +1,7 @@
 # Exported functions
 export(aucJM, bma.combine, dynCJM, marglogLik, coef.JMbayes, dbs, dns, fixef.JMbayes, jointModelBayes, 
 	ibs, ins, logLik.JMbayes, plot.JMbayes, plot.survfit.JMbayes, prederrJM, predict.JMbayes, ranef.JMbayes, 
-	survfitJM)
+	survfitJM, xtable.JMbayes)
 
 # Imported functions
 importFrom(nlme, fixed.effects)
@@ -19,6 +19,7 @@ S3method(confint, JMbayes)
 S3method(dynCJM, JMbayes)
 S3method(dynCJM, coxph)
 S3method(fixef, JMbayes)
+S3method(fitted, JMbayes)
 S3method(logLik, JMbayes)
 S3method(makepredictcall, dbs)
 S3method(makepredictcall, dns)
@@ -34,6 +35,7 @@ S3method(print, prederrJM)
 S3method(print, summary.JMbayes)
 S3method(print, survfit.JMbayes)
 S3method(ranef, JMbayes)
+S3method(residuals, JMbayes)
 S3method(summary, JMbayes)
 S3method(survfitJM, JMbayes)
 S3method(prederrJM, JMbayes)

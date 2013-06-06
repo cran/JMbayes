@@ -24,9 +24,9 @@ function (object, newdata, Tstart, Thoriz, lossFun = c("absolute", "square"),
     SurvT <- model.response(model.frame(TermsT, newdata2)) 
     Time <- SurvT[, 1]
     delta <- SurvT[, 2]
-    aliveThoriz <- newdata2[Time > Thoriz & newdata2[[timeVar]] < Tstart, ]
-    deadThoriz <- newdata2[Time <= Thoriz & delta == 1 & newdata2[[timeVar]] < Tstart, ]
-    indCens <- Time < Thoriz & delta == 0 & newdata2[[timeVar]] < Tstart
+    aliveThoriz <- newdata2[Time > Thoriz & newdata2[[timeVar]] <= Tstart, ]
+    deadThoriz <- newdata2[Time <= Thoriz & delta == 1 & newdata2[[timeVar]] <= Tstart, ]
+    indCens <- Time < Thoriz & delta == 0 & newdata2[[timeVar]] <= Tstart
     censThoriz <- newdata2[indCens, ]
     nr <- length(unique(newdata2[[idVar]])) 
     idalive <- unique(aliveThoriz[[idVar]])

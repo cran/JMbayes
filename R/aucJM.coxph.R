@@ -1,6 +1,7 @@
 aucJM.coxph <-
 function (object, newdata, Tstart, Thoriz = NULL, Dt = NULL, 
-                         idVar = "id", timeVar = "time", ...) {
+                         idVar = "id", respVar = "y", timeVar = "time", evTimeVar = "Time",
+                         summary = c("value", "slope", "area"), tranfFun = function (x) x, ...) {
     if (!inherits(object, "coxph"))
         stop("Use only with 'coxph' objects.\n")
     if (!is.data.frame(newdata) || nrow(newdata) == 0)
@@ -11,6 +12,7 @@ function (object, newdata, Tstart, Thoriz = NULL, Dt = NULL,
         stop("either 'Thoriz' or 'Dt' must be non null.\n")
     if (is.null(Thoriz))
         Thoriz <- Tstart + Dt
+    newdata$area <- newdata$slope <- 0
     id <- newdata[[idVar]]
     id <- match(id, unique(id))
     TermsT <- object$terms
@@ -18,10 +20,8 @@ function (object, newdata, Tstart, Thoriz = NULL, Dt = NULL,
     Time <- SurvT[, 1]
     ordTime <- order(Time)
     newdata2 <- newdata[ordTime, ]
-    newdata2 <- newdata2[Time[ordTime] > Tstart, ]
-    newdata2 <- newdata2[newdata2[[timeVar]] <= Tstart, ]
-    newdata2 <- newdata2[tapply(row.names(newdata2), 
-                                factor(newdata2[[idVar]], unique(newdata2[[idVar]])), tail, 1), ]
+    newdata2 <- dataLM(newdata2, Tstart, idVar, respVar, timeVar, evTimeVar, summary, 
+                      tranfFun)
     pi.u.t <- c(summary(survfit(object, newdata = newdata2), times = Thoriz)$surv)
     # find comparable subjects
     id <- newdata2[[idVar]]

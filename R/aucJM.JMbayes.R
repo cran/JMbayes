@@ -6,7 +6,7 @@ function (object, newdata, Tstart, Thoriz = NULL, Dt = NULL, idVar = "id",
     if (!is.data.frame(newdata) || nrow(newdata) == 0)
         stop("'newdata' must be a data.frame with more than one rows.\n")
     if (is.null(newdata[[idVar]]))
-        stop("'idVar' not in 'newdata.\n'")
+        stop("'idVar' not in 'newdata'.\n")
     if (is.null(Thoriz) && is.null(Dt))
         stop("either 'Thoriz' or 'Dt' must be non null.\n")
     if (is.null(Thoriz))
