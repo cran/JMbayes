@@ -1,7 +1,7 @@
 # Exported functions
-export(aucJM, bma.combine, dynCJM, marglogLik, coef.JMbayes, dbs, dns, fixef.JMbayes, jointModelBayes, 
-	ibs, ins, logLik.JMbayes, plot.JMbayes, plot.survfit.JMbayes, prederrJM, predict.JMbayes, ranef.JMbayes, 
-	survfitJM, xtable.JMbayes)
+export(anova.JMbayes, aucJM, bma.combine, dynCJM, dgt, marglogLik, coef.JMbayes, dbs, dns, fixef.JMbayes, jointModelBayes, 
+	ibs, ins, logLik.JMbayes, pgt, plot.JMbayes, plot.survfit.JMbayes, prederrJM, predict.JMbayes, ranef.JMbayes, rgt, 
+	survfitJM, qgt, xtable.JMbayes)
 
 # Imported functions
 importFrom(nlme, fixed.effects)
@@ -9,8 +9,14 @@ importFrom(nlme, fixef)
 importFrom(nlme, random.effects)
 importFrom(nlme, ranef)
 importFrom(stats, makepredictcall)
+importFrom(survival, survfit)
+importFrom(splines, ns)
+importFrom(splines, bs)
+importFrom(MASS, mvrnorm)
+importFrom(MASS, glmmPQL)
 
 # S3 methods
+S3method(anova, JMbayes)
 S3method(aucJM, JMbayes)
 S3method(aucJM, coxph)
 S3method(coef, JMbayes)

@@ -11,7 +11,7 @@ function (object, newdata, Dt, idVar = "id", t.max = NULL, simulate = FALSE, M =
         stop("'Dt' must be a numeric scalar.\n")
     if (!is.null(weightFun) && !is.function(weightFun))
         stop("'weightFun' must be a function.\n")
-    TermsT <- object$termsT
+    TermsT <- object$Terms$termsT
     SurvT <- model.response(model.frame(TermsT, newdata)) 
     Time <- SurvT[, 1]
     event <- SurvT[, 2]
@@ -21,8 +21,11 @@ function (object, newdata, Dt, idVar = "id", t.max = NULL, simulate = FALSE, M =
     sk <- gaussKronrod()$sk
     P <- t.max / 2
     st <- P * (sk + 1)
-    auc.st <- sapply(st, function (t) 
-        aucJM(object, newdata = newdata, Tstart = t, Dt = Dt, idVar = idVar, simulate = simulate, M = M)$auc)
+    auc.st <- sapply(st, function (t) {
+        test <- try(aucJM(object, newdata = newdata, Tstart = t, Dt = Dt, idVar = idVar, simulate = simulate, M = M)$auc, TRUE)
+        if (!inherits(test, "try-error")) test else NA
+        
+    })
     if (is.null(weightFun)) {
         weightFun <- function (t, Dt) {
             sfit <- survfit(Surv(Time, event) ~ 1)

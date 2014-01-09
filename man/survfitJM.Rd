@@ -16,7 +16,7 @@ survfitJM(object, newdata, \dots)
 \method{survfitJM}{JMbayes}(object, newdata, idVar = "id", 
    simulate = TRUE, survTimes = NULL, last.time = NULL, M = 200, 
    CI.levels = c(0.025, 0.975), scale = 1.6, 
-   weight = rep(1, nrow(newdata)), \dots)
+   weight = rep(1, nrow(newdata)), seed = 1, \dots)
 }
 
 \arguments{
@@ -30,7 +30,7 @@ survfitJM(object, newdata, \dots)
   \item{simulate}{logical; if \code{TRUE}, a Monte Carlo approach is used to estimate survival probabilities. If \code{FALSE},
     a first order estimator is used instead. (see \bold{Details})}
   \item{survTimes}{a numeric vector of times for which prediction survival probabilities are to be computed.}
-  \item{last.time}{a numeric vector or character string. This specifies the known time at which each of the subjects in \code{newdat}
+  \item{last.time}{a numeric vector or character string. This specifies the known time at which each of the subjects in \code{newdata}
     was known to be alive. If \code{NULL}, then this is automatically taken as the last time each subject provided a longitudinal
     measurement. If a numeric vector, then it is assumed to contain this last time point for each subject. If a character string, then
     it should be a variable in the data frame \code{newdata}.}
@@ -39,6 +39,7 @@ survfitJM(object, newdata, \dots)
     predicted probabilities -- see \bold{Details}.}
   \item{scale}{a numeric scalar that controls the acceptance rate of the Metropolis-Hastings algorithm -- see \bold{Details}.}
   \item{weight}{a numeric vector of weights to be applied to the predictions of each subject.}
+  \item{seed}{numeric scalar, the random seed used to produce the results.}
   \item{\dots}{additional arguments; currently none is used.}
 }
 
@@ -105,11 +106,10 @@ pbc2.id$status2 <- as.numeric(pbc2.id$status != "alive")
 # we fit the joint model using splines for the subject-specific 
 # longitudinal trajectories and a spline-approximated baseline
 # risk function
-lmeFit <- lme(log(serBilir) ~ ns(year, 3),
-    random = list(id = pdDiag(form = ~ ns(year, 3))), data = pbc2)
+lmeFit <- lme(log(serBilir) ~ ns(year, 2), data = pbc2,
+    random = ~ ns(year, 2) | id)
 survFit <- coxph(Surv(years, status2) ~ drug, data = pbc2.id, x = TRUE)
-jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year", 
-    survMod = "spline-PH")
+jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year")
 
 # we will compute survival probabilities for Subject 2 in a dynamic manner, 
 # i.e., after each longitudinal measurement is recorded

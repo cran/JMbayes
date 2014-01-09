@@ -3,52 +3,58 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas =
         full.Laplace = FALSE, useModes = TRUE, ...) {
     if (!inherits(object, "JMbayes"))
         stop("'object' must inherit from class JMbayes.")
-    if (missing(thetas))
-        thetas <- object$coefficients
+    indexRE <- names(object$postMeans) != "b"
+    if (missing(thetas)) {
+        thetas <- object$postMeans[indexRE]
+    }
     if (missing(b))
         b <- ranef(object)
-    if (!is.list(thetas) || length(thetas) != length(object$coefficients))
+    if (!is.list(thetas) || length(thetas) != length(object$postMeans[indexRE]))
         stop("'thetas' must be a list with the model's parameters with the same structure as ",
-            "'object$coefficients'.")    
+            "'object$postMeans'.")    
     if (!is.matrix(b) || dim(b) != dim(ranef(object)))
         stop("'b' must be a numeric matrix with random effects values with the same ",
             "dimensions as 'ranef(object)'.")
     # data and settings
-    survMod <- object$survMod
     timeVar <- object$timeVar
-    robust <- object$robust
-    robust.b <- object$robust.b
+    baseHaz <- object$baseHaz
     lag <- object$y$lag
-    df <- object$df
-    df.b <- object$df.b
+    df.RE <- object$y$df.RE
     param <- object$param
-    indFixed <- object$extraForm$indFixed
-    indRandom <- object$extraForm$indRandom
-    id <- object$id
+    indFixed <- object$Forms$extraForm$indFixed
+    indRandom <- object$Forms$extraForm$indRandom
+    id <- object$y$id
     id <- match(id, unique(id))
+    id.GK <- object$y$id.GK
+    indBetas <- object$y$indBetas
     y <- object$y$y
-    logT <- object$y$logT
-    Time <- exp(logT)
+    Time <- object$y$Time
     event <- object$y$event
-    n <- length(logT)
+    n <- length(Time)
     X <- object$x$X
     Z <- object$x$Z
     W <- object$x$W
-    if (any(ind <- colSums(W == 0) == nrow(W)))
-        W <- W[, !ind, drop = FALSE]
     W2 <- object$x$W2
     W2s <- object$x$W2s
     Xtime <- object$x$Xtime
     Ztime <- object$x$Ztime
-    Xtime.deriv <- object$x$Xtime.deriv
-    Ztime.deriv <- object$x$Ztime.deriv
+    Xtime.extra <- object$x$Xtime.extra
+    Ztime.extra <- object$x$Ztime.extra
     Xs <- object$x$Xs
     Zs <- object$x$Zs
-    Xs.deriv <- object$x$Xs.deriv
-    Zs.deriv <- object$x$Zs.deriv
+    Xs.extra <- object$x$Xs.extra
+    Zs.extra <- object$x$Zs.extra
     st <- object$x$st
     wk <- object$x$wk
     P <- object$x$P
+    wk.long <- rep(wk, n)
+    data <- object$Data$data
+    data.id <- object$Data$data.id
+    data.s <- object$Data$data.s
+    densLong <- object$Funs$densLong
+    densRE <- object$Funs$densRE
+    transFun.value <- object$Funs$transFun.value
+    transFun.extra <- object$Funs$transFun.extra
     # parameters
     betas <- thetas$betas
     sigma <- thetas$sigma
@@ -56,43 +62,37 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas =
     gammas <- thetas$gammas
     alphas <- thetas$alphas
     Dalphas <- thetas$Dalphas
-    sigma.t <- thetas$sigma.t
     Bs.gammas <- thetas$Bs.gammas
+    tauBs <- thetas$tauBs
     # log-likelihood
     h <- function (b, individuals = NULL) {
-        mu.y <- c(X %*% betas) + rowSums(Z * b[id, , drop = FALSE])
-        log.p.y.b <- if (!robust) dnorm(y, mu.y, sigma, log = TRUE) else dgt(y, mu.y, sigma, df, log = TRUE)
-        log.p.y.b <- tapply(log.p.y.b, id, sum)
+        eta.y <- c(X %*% betas) + rowSums(Z * b[id, , drop = FALSE])
+        log.p.y.b <- fastSumID(densLong(y, eta.y, sigma, log = TRUE, data), id)
         eta.t <- if (!is.null(gammas)) c(W %*% gammas) else rep(0, n)
-        id.GK <- rep(seq_along(logT), each = 15)
-        wk.long <- rep(wk, n)
         if (param %in% c("td-value", "td-both")) {
-            Y <- c(Xtime %*% betas) + rowSums(Ztime * b)
-            Ys <- c(Xs %*% betas) + rowSums(Zs * b[id.GK, , drop = FALSE])
+            Y <- transFun.value(c(Xtime %*% betas) + rowSums(Ztime * b), data.id)
+            Ys <- transFun.value(c(Xs %*% betas) + rowSums(Zs * b[id.GK, , drop = FALSE]), data.s)
         }
         if (param %in% c("td-extra", "td-both")) {
-            Yderiv <- c(Xtime.deriv %*% betas[indFixed]) + rowSums(Ztime.deriv * b[, indRandom, drop = FALSE])
-            Ys.deriv <- c(Xs.deriv %*% betas[indFixed]) + rowSums(Zs.deriv * b[id.GK, indRandom, drop = FALSE])
+            Yextra <- transFun.extra(c(Xtime.extra %*% betas[indFixed]) + 
+                                         rowSums(Ztime.extra * b[, indRandom, drop = FALSE]), data.id)
+            Ys.extra <- transFun.extra(c(Xs.extra %*% betas[indFixed]) + 
+                                           rowSums(Zs.extra * b[id.GK, indRandom, drop = FALSE]), data.s)
         }
-        longSurv <- switch(param,
-            "td-value" = alphas * Y, 
-            "td-extra" = Dalphas * Yderiv,
-            "td-both" = alphas * Y + Dalphas * Yderiv,
-            "shared-RE" = c(b %*% alphas))
-        longSurv.s <- switch(param,
-            "td-value" = alphas * Ys, 
-            "td-extra" = Dalphas * Ys.deriv,
-            "td-both" = alphas * Ys + Dalphas * Ys.deriv,
-            "shared-RE" = c(b %*% alphas)[id.GK])
-        if (survMod == "weibull-PH") {
-            log.hazard <- log(sigma.t) + (sigma.t - 1) * logT + eta.t + longSurv
-            log.survival <- - exp(eta.t) * P * tapply(wk.long * exp(log(sigma.t) + 
-                (sigma.t - 1) * log(c(t(st))) + longSurv.s), id.GK, sum)
-        } else {
-            log.hazard <- c(W2 %*% Bs.gammas) + eta.t + longSurv
-            log.survival <- - exp(eta.t) * P * tapply(wk.long * exp(c(W2s %*% Bs.gammas) + 
-                longSurv.s), id.GK, sum)
-        }
+        longSurv <- c(switch(param,
+            "td-value" = as.matrix(Y) %*% alphas, 
+            "td-extra" = as.matrix(Yextra) %*% Dalphas,
+            "td-both" = as.matrix(Y) %*% alphas + as.matrix(Yextra) %*% Dalphas,
+            "shared-betasRE" = (rep(betas[indBetas], each = nrow(b)) + b) %*% alphas,
+            "shared-RE" = b %*% alphas))
+        longSurv.s <- c(switch(param,
+            "td-value" = as.matrix(Ys) %*% alphas, 
+            "td-extra" =  as.matrix(Ys.extra) %*% Dalphas,
+            "td-both" = as.matrix(Ys) %*% alphas + as.matrix(Ys.extra) %*% Dalphas,
+            "shared-betasRE" = c((rep(betas[indBetas], each = nrow(b)) + b) %*% alphas)[id.GK],
+            "shared-RE" = c(b %*% alphas)[id.GK]))
+        log.hazard <- c(W2 %*% Bs.gammas) + eta.t + longSurv
+        log.survival <- - exp(eta.t) * P * fastSumID(wk.long * exp(c(W2s %*% Bs.gammas) + longSurv.s), id.GK)
         log.p.t.b <- event * log.hazard + log.survival
         if (!is.null(individuals))
             log.p.y.b[individuals] + log.p.t.b[individuals]
@@ -100,8 +100,7 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas =
             log.p.y.b + log.p.t.b
     }
     logLik <- if (!marginal.b) {
-        log.p.b <- if (!robust.b) dmvnorm(b, rep(0, ncol(b)), D, log = TRUE)
-            else dmvt(b, rep(0, ncol(b)), D, df.b, log = TRUE)
+        log.p.b <- densRE(b, D, log = TRUE, prop = FALSE)
         sum(h(b) + log.p.b, na.rm = TRUE)
     } else {
         mean.b <- ranef(object)
@@ -110,8 +109,7 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas =
             optFun <- function (b, id) {
                 b. <- ranef(object)
                 b.[id, ] <- b
-                log.p.b <- if (!robust.b) dmvnorm(b., rep(0, ncol(b.)), D, log = TRUE)
-                    else dmvt(b., rep(0, ncol(b.)), D, df.b, log = TRUE)
+                log.p.b <- densRE(b, D, log = TRUE, prop = FALSE)
                 - h(b., id) - log.p.b[id] 
             }
             for (i in seq_len(n)) {
@@ -121,9 +119,8 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas =
                 var.b[[i]] <- solve(opt$hessian)
             }
         }
-        log.p.b <- if (!robust.b) dmvnorm(mean.b, rep(0, ncol(b)), D, log = TRUE)
-            else dmvt(mean.b, rep(0, ncol(b)), D, df.b, log = TRUE)
-        log.dets.var.b <- sapply(var.b, function (x) determinant(x)$modulus)
+        log.p.b <- densRE(b, D, log = TRUE, prop = FALSE)
+        log.dets.var.b <- apply(var.b, 3, function (x) determinant(x)$modulus)
         sum(0.5 * ncol(b) * log(2 * pi) + 0.5 * log.dets.var.b + 
             h(mean.b) + log.p.b, na.rm = TRUE)
     }
@@ -132,13 +129,16 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas =
         priors <- object$priors
         log.betas <- dmvnorm(betas, priors$priorMean.betas, 
             solve(priors$priorTau.betas), log = TRUE)
-        log.tau <- dgamma(1 / (sigma^2), priors$priorA.tau, 
-            priors$priorB.tau, log = TRUE)
-        log.D <- dwish(D, priors$priorR.D, priors$priorK.D, log = TRUE)
-        logPrior <- log.betas + log.tau + log.D
+        log.D <- dwish(solve(D), priors$priorR.invD, priors$priorK.invD, log = TRUE)
+        logPrior <- log.betas + log.D
+        if (!is.null(sigma)) {
+            log.tau <- dgamma(1 / (sigma^2), priors$priorA.tau, 
+                              priors$priorB.tau, log = TRUE)
+            logPrior <- logPrior + log.tau
+        }
         if (!is.null(gammas)) {
-            log.gammas <- dmvnorm(gammas, priors$priorMean.gammas[!ind], 
-                solve(priors$priorTau.gammas)[!ind, !ind], log = TRUE)
+            log.gammas <- dmvnorm(gammas, priors$priorMean.gammas, 
+                solve(priors$priorTau.gammas), log = TRUE)
             logPrior <- logPrior + log.gammas
         }
         if (!is.null(alphas)) {
@@ -151,19 +151,22 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas =
                 solve(priors$priorTau.Dalphas), log = TRUE)
             logPrior <- logPrior + log.Dalphas
         }
-        if (!is.null(sigma.t)) {
-            log.nu <- dgamma(sigma.t, priors$priorA.sigma.t, priors$priorB.sigma.t, log = TRUE)
-            logPrior <- logPrior + log.nu
-        }
-        if (!is.null(Bs.gammas)) {
+        if (baseHaz == "regression-splines") {
             log.Bs.gammas <- dmvnorm(Bs.gammas, priors$priorMean.Bs.gammas, 
                 solve(priors$priorTau.Bs.gammas), log = TRUE)
             logPrior <- logPrior + log.Bs.gammas
+        } else {
+            log.Bs.gammas <- dmvnorm(Bs.gammas, priors$priorMean.Bs.gammas, 
+                                     invSigma = tauBs * priors$priorTau.Bs.gammas, 
+                                     log = TRUE)
+            log.tauBs <- dgamma(tauBs, priors$priorA.tauBs, 
+                              priors$priorB.tauBs, log = TRUE)
+            logPrior <- logPrior + log.Bs.gammas + log.tauBs
         }
         logLik <- logLik + logPrior
     }
     if (marginal.thetas) {
-        tht <- if (useModes) object$modes else object$coefficients
+        tht <- if (useModes) object$postModes else object$postMeans[-3]
         lL <- logLik(object, thetas = tht)
         var.thetas <- hessian.JMbayes(object, thetas = tht)
         tht$D <- tht$D[lower.tri(tht$D, TRUE)]

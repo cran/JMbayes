@@ -4,31 +4,10 @@ function (object, process = c("Longitudinal", "Event"), ...) {
         stop("Use only with 'JMbayes' objects.\n")
     process <- match.arg(process)
     if (process == "Longitudinal") {
-        object$coefficients$betas
+        object$postMeans$betas
     } else {
-        gammas <- object$coefficients$gammas
-        out <- c(gammas, "Assoct" = as.vector(object$coefficients$alphas), 
-            "Assoct.s" = as.vector(object$coefficients$Dalphas))
-        jj <- grep("Assoct[!^\\.s]", names(out))
-        ii <- setdiff(grep("Assoct", names(out)), jj)
-        if (length(ii) > 1) {
-            nn <- names(object$coefficients$alphas)
-            names(out)[ii] <- if (length(nn) == 1) "Assoct" else {
-                if (nn[1] == "") 
-                    c("Assoct", paste("Assoct", nn[-1], sep = ":"))
-                else
-                    paste("Assoct", nn, sep = ":")
-            }
-        }
-        if (length(jj) > 1) {
-            nn <- names(object$coefficients$Dalphas)
-            names(out)[jj] <- if (length(nn) == 1) "Assoct.s" else {
-                if (nn[1] == "") 
-                    c("Assoct.s", paste("Assoct.s", nn[-1], sep = ":"))
-                else
-                    paste("Assoct.s", nn, sep = ":")
-            }
-        }
+        gammas <- object$postMeans$gammas
+        out <- c(gammas, object$postMeans$alphas, object$postMeans$Dalphas, object$postMeans$shapes)
         if ((lag <- object$y$lag) > 0) {
             kk <- grep("Assoct", names(out), fixed = TRUE)
             names(out)[kk] <- paste(names(out)[kk], "(lag=", lag, ")", sep = "")

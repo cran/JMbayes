@@ -33,13 +33,12 @@ pbc2.id$status2 <- as.numeric(pbc2.id$status != "alive")
 # longitudinal trajectories and a spline-approximated baseline
 # risk function; the first one with the current value parameterization
 # and the other with the shared random effects parameterization
-lmeFit <- lme(log(serBilir) ~ ns(year, 3),
-    random = list(id = pdDiag(form = ~ ns(year, 3))), data = pbc2)
+lmeFit <- lme(log(serBilir) ~ ns(year, 2), data = pbc2,
+              random = ~ ns(year, 2) | id)
 survFit <- coxph(Surv(years, status2) ~ drug, data = pbc2.id, x = TRUE)
 
-jointFit1 <- jointModelBayes(lmeFit, survFit, timeVar = "year", 
-    survMod = "spline-PH")
-jointFit2 <- update(jointFit1, param = "shared-RE")
+jointFit1 <- jointModelBayes(lmeFit, survFit, timeVar = "year")
+jointFit2 <- update(jointFit1, param = "shared-betasRE")
 
 # we compute survival probabilities for Subject 2 with 
 # different weights

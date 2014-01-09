@@ -6,41 +6,41 @@ function (object, newdata, idVar = "id", method = "BFGS", control = NULL) {
         stop("'newdata' must be a data.frame with more than one rows.\n")
     if (is.null(newdata[[idVar]]))
         stop("'idVar' not in 'newdata.\n'")
-    survMod <- object$survMod
     timeVar <- object$timeVar
-    interFact <- object$interFact
-    robust <- object$robust
-    robust.b <- object$robust.b
-    df <- object$df
-    df.b <- object$df.b
+    baseHaz <- object$baseHaz
+    df.RE <- object$df.RE
     param <- object$param
-    extraForm <- object$extraForm
-    indFixed <- extraForm$indFixed
-    indRandom <- extraForm$indRandom
-    TermsX <- object$termsYx
-    TermsZ <- object$termsYz
-    TermsX.deriv <- object$termsYx.deriv
-    TermsZ.deriv <- object$termsYz.deriv
+    extraForm <- object$Forms$extraForm
+    indFixed <- extraForm$Forms$indFixed
+    indRandom <- extraForm$Forms$indRandom
+    TermsX <- object$Terms$termsYx
+    TermsZ <- object$Terms$termsYz
+    TermsX.extra <- object$Terms$termsYx.extra
+    TermsZ.extra <- object$Terms$termsYz.extra
     mfX <- model.frame(TermsX, data = newdata)
     mfZ <- model.frame(TermsZ, data = newdata)
     formYx <- reformulate(attr(delete.response(TermsX), "term.labels"))
-    formYz <- object$formYz
+    formYz <- object$Forms$formYz
     na.ind <- as.vector(attr(mfX, "na.action"))
     na.ind <- if (is.null(na.ind)) {
         rep(TRUE, nrow(newdata))
     } else {
         !seq_len(nrow(newdata)) %in% na.ind
     }
+    indBetas <- object$y$indBetas
     id <- as.numeric(unclass(newdata[[idVar]]))
     id <- id. <- match(id, unique(id))
     id <- id[na.ind]
     y <- model.response(mfX)
     X <- model.matrix(formYx, mfX)
     Z <- model.matrix(formYz, mfZ)[na.ind, , drop = FALSE]
-    TermsT <- object$termsT
+    TermsT <- object$Terms$termsT
     data.id <- newdata[!duplicated(id), ]
+    data.s <- data.id[rep(1:nrow(data.id), each = 15), ]
     idT <- data.id[[idVar]]
     idT <- match(idT, unique(idT))
+    ids <- data.s[[idVar]]
+    ids <- match(ids, unique(ids))
     mfT <- model.frame(delete.response(TermsT), data = data.id)
     formT <- if (!is.null(kk <- attr(TermsT, "specials")$strata)) {
         strt <- eval(attr(TermsT, "variables"), data.id)[[kk]]
@@ -53,35 +53,24 @@ function (object, newdata, idVar = "id", method = "BFGS", control = NULL) {
         tt <- attr(delete.response(TermsT), "term.labels")
         if (length(tt)) reformulate(tt) else reformulate("1")
     }
-    W <- model.matrix(formT, mfT)
-    WintF.vl <- WintF.sl <- as.matrix(rep(1, nrow(data.id)))
-    if (!is.null(interFact)) {
-        if (!is.null(interFact$value))
-            WintF.vl <- model.matrix(interFact$value, data = data.id)
-        if (!is.null(interFact$slope))
-            WintF.sl <- model.matrix(interFact$slope, data = data.id)
-    }
+    W <- model.matrix(formT, mfT)[, -1, drop = FALSE]
     last.time <- tapply(newdata[[timeVar]], id., tail, n = 1)
     n.tp <- length(last.time)
     ncx <- ncol(X)
     ncz <- ncol(Z)
     ncww <- ncol(W)
-    if (survMod == "spline-PH") {
-        if (ncww == 1) {
-            W <- NULL
-            ncww <- 0
-        } else {
-            W <- W[, -1, drop = FALSE]
-            ncww <- ncww - 1
-        }
-    }
     lag <- object$y$lag
+    densLong <- object$Funs$densLong
+    densRE <- object$Funs$densRE
+    transFun.value <- object$Funs$transFun.value
+    transFun.extra <- object$Funs$transFun.extra
     # list of parameters
-    list.thetas <- c(object$modes, list(ranef = rbind(rep(0, ncz)) ))
-    list.thetas$sigma <- log(list.thetas$sigma)
+    list.thetas <- c(object$postModes, list(ranef = rep(0, ncz) ))
+    if (!is.null(list.thetas$sigma))
+        list.thetas$sigma <- log(list.thetas$sigma)
+    if (!is.null(list.thetas$tauBs))
+        list.thetas$tauBs <- log(list.thetas$tauBs)
     list.thetas$D <- chol.transf(list.thetas$D)
-    if (!is.null(list.thetas$sigma.t))
-        list.thetas$sigma.t <- log(list.thetas$sigma.t)
     thetas.b <- unlist(as.relistable(list.thetas))
     # construct model matrices to calculate the log.posterior
     environment(ModelMats) <- environment()
@@ -97,62 +86,56 @@ function (object, newdata, idVar = "id", method = "BFGS", control = NULL) {
         alphas <- tht$alphas
         Dalphas <- tht$Dalphas
         Bs.gammas <- tht$Bs.gammas
+        sigma <- tht$sigma
+        tauBs <- tht$tauBs
         b <- tht$ranef
         if (transform) {
-            sigma <- exp(tht$sigma)
+            if (!is.null(sigma)) sigma <- exp(tht$sigma)
+            if (!is.null(tauBs)) tauBs <- exp(tauBs)
             D <- chol.transf(tht$D)
-            sigma.t <- if (is.null(tht$sigma.t)) NULL else exp(tht$sigma.t)
         } else {
             sigma <- tht$sigma
             D <- matrix(0, ncz, ncz)
             D[lower.tri(D, TRUE)] <- tht$D
             D <- D + t(D)
             diag(D) <- diag(D) / 2
-            sigma.t <- tht$sigma.t
         }
         # log-likelihood contributions
         id.i <- id %in% ii
         idT.i <- idT %in% ii
+        ids.i <- ids %in% ii
         X.i <- X[id.i, , drop = FALSE]
         Z.i <- Z[id.i, , drop = FALSE]
-        mu.y <- as.vector(X.i %*% betas) + rowSums(Z.i * rep(b, each = nrow(Z.i)))
-        logY <- if (!robust) dnorm(y[id.i], mu.y, sigma, TRUE) else dgt(y[id.i], mu.y, sigma, df, TRUE)
+        mu.y <- as.vector(X.i %*% betas + Z.i %*% b)
+        logY <- densLong(y[id.i], mu.y, sigma, log = TRUE)
         log.p.yb <- sum(logY)
-        log.p.b <- if (!robust.b) dmvnorm(b, rep(0, ncol(Z)), D, TRUE) else dmvt(b, rep(0, ncol(Z)), D, df.b, TRUE)
+        log.p.b <- densRE(b, D = D, log = TRUE, prop = FALSE)
         st <- survMats.last[[ii]]$st
         wk <- survMats.last[[ii]]$wk
         P <- survMats.last[[ii]]$P
         Xs <- survMats.last[[ii]]$Xs
         Zs <- survMats.last[[ii]]$Zs
-        Xs.deriv <- survMats.last[[ii]]$Xs.deriv
-        Zs.deriv <- survMats.last[[ii]]$Zs.deriv
-        Ws.intF.vl <- survMats.last[[ii]]$Ws.intF.vl
-        Ws.intF.sl <- survMats.last[[ii]]$Ws.intF.sl
+        Xs.extra <- survMats.last[[ii]]$Xs.extra
+        Zs.extra <- survMats.last[[ii]]$Zs.extra
+        W2s <- survMats.last[[ii]]$W2s
         ind <- survMats.last[[ii]]$ind
         if (param %in% c("td-value", "td-both"))
-            Ys <- as.vector(Xs %*% betas + rowSums(Zs * rep(b, each = nrow(Zs))))
+            Ys <- transFun.value(as.vector(Xs %*% betas + Zs %*% b), data.s[ids.i, ])
         if (param %in% c("td-extra", "td-both"))
-            Ys.deriv <- as.vector(Xs.deriv %*% betas[indFixed]) + 
-                rowSums(Zs.deriv * rep(b[indRandom], each = nrow(Zs)))
+            Ys.extra <- transFun.extra(as.vector(Xs.extra %*% betas[indFixed] + 
+                                                     Zs.extra %*% b[indRandom]), data.s[ids.i, ])
         tt <- switch(param,
-            "td-value" = c(Ws.intF.vl %*% alphas) * Ys, 
-            "td-extra" = c(Ws.intF.sl %*% Dalphas) * Ys.deriv,
-            "td-both" = c(Ws.intF.vl %*% alphas) * Ys + c(Ws.intF.sl %*% Dalphas) * Ys.deriv,
+            "td-value" = as.matrix(Ys) %*% alphas, 
+            "td-extra" = as.matrix(Ys.extra) %*% Dalphas,
+            "td-both" = as.matrix(Ys) %*% alphas + as.matrix(Ys.extra) %*% Dalphas,
+            "shared-betasRE" = rep(sum((betas[indBetas] + b) * alphas), length(st)),        
             "shared-RE" = rep(sum(b * alphas), length(st)))
-        eta.tw <- if (!is.null(W)) {
+        eta.tw <- if (ncol(W)) {
                 as.vector(W[ii, , drop = FALSE] %*% gammas)
         } else 0
-        log.survival <- if (survMod == "weibull-PH") {
-            Vi <- exp(log(sigma.t) + (sigma.t - 1) * log(st) + tt)
-            - exp(eta.tw) * P * sum(wk * Vi)
-        } else if (survMod == "spline-PH") {
-            kn <- object$control$knots
-            W2s <- splineDesign(unlist(kn, use.names = FALSE), st, 
-                ord = object$control$ordSpline, outer.ok = TRUE)
-            Vi <- exp(c(W2s %*% Bs.gammas) + tt)
-            idT <- rep(seq_along(P), each = 15)
-            - sum(exp(eta.tw) * P * tapply(wk * Vi, idT, sum))
-        }
+        Vi <- exp(c(W2s %*% Bs.gammas) + tt)
+        idT <- rep(seq_along(P), each = 15)
+        log.survival <- - sum(exp(eta.tw) * P * tapply(wk * Vi, idT, sum))
         if (all(st == 0))
             log.survival <- 1
         logLik <- log.p.yb + log.survival + log.p.b
@@ -162,7 +145,7 @@ function (object, newdata, idVar = "id", method = "BFGS", control = NULL) {
             solve(priors$priorTau.betas), log = TRUE)
         log.tau <- dgamma(1 / (sigma^2), priors$priorA.tau, 
             priors$priorB.tau, log = TRUE)
-        log.D <- dwish(D, priors$priorR.D, priors$priorK.D, log = TRUE)
+        log.D <- dwish(solve(D), priors$priorR.invD, priors$priorK.invD, log = TRUE)
         logPrior <- log.betas + log.tau + log.D
         if (!is.null(gammas)) {
             ind <- colSums(object$x$W == 0) == nrow(object$x$W)
@@ -180,14 +163,17 @@ function (object, newdata, idVar = "id", method = "BFGS", control = NULL) {
                 solve(priors$priorTau.Dalphas), log = TRUE)
             logPrior <- logPrior + log.Dalphas
         }
-        if (!is.null(sigma.t)) {
-            log.nu <- dgamma(sigma.t, priors$priorA.sigma.t, priors$priorB.sigma.t, log = TRUE)
-            logPrior <- logPrior + log.nu
-        }
-        if (!is.null(Bs.gammas)) {
+        if (baseHaz == "regression-splines") {
             log.Bs.gammas <- dmvnorm(Bs.gammas, priors$priorMean.Bs.gammas, 
-                solve(priors$priorTau.Bs.gammas), log = TRUE)
+                                     solve(priors$priorTau.Bs.gammas), log = TRUE)
             logPrior <- logPrior + log.Bs.gammas
+        } else {
+            log.Bs.gammas <- dmvnorm(Bs.gammas, priors$priorMean.Bs.gammas, 
+                                     invSigma = tauBs * priors$priorTau.Bs.gammas, 
+                                     log = TRUE)
+            log.tauBs <- dgamma(tauBs, priors$priorA.tauBs, 
+                                priors$priorB.tauBs, log = TRUE)
+            logPrior <- logPrior + log.Bs.gammas + log.tauBs
         }
         - as.vector(logLik + logPrior)
     }
@@ -205,7 +191,6 @@ function (object, newdata, idVar = "id", method = "BFGS", control = NULL) {
             opt.thetas$sigma <- exp(opt.thetas$sigma)
             opt.thetas$D <- chol.transf(opt.thetas$D)
             opt.thetas$D <- opt.thetas$D[lower.tri(opt.thetas$D, TRUE)]
-            opt.thetas$sigma.t <- if (is.null(opt.thetas$sigma.t)) NULL else exp(opt.thetas$sigma.t)
             opt.thetas <- unlist(as.relistable(opt.thetas))
             H <- opt$hessian #fd.vec(opt.thetas, score.logPost, ii = i, transform = FALSE, eps = 1e-06)
             as.vector(0.5 * length(unlist(list.thetas)) * log(2 * pi) - 

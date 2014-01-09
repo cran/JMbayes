@@ -3,10 +3,10 @@ function (object, thetas, numerDeriv = c("fd", "cd")) {
     if (!inherits(object, "JMbayes"))
         stop("Use only with 'JMbayes' objects.\n")
     if (missing(thetas))
-        thetas <- object$coefficients
-    if (!is.list(thetas) || length(thetas) != length(object$coefficients))
+        thetas <- object$postMeans
+    if (!is.list(thetas) || length(thetas) != length(object$postMeans[-3]))
         stop("'thetas' must be a list with the model's parameters with the same structure as ",
-            "'object$coefficients'.")    
+            "'object$postMeans'.")    
     numerDeriv <- match.arg(numerDeriv)
     list.thetas <- thetas
     p <- ncol(list.thetas$D)

@@ -59,11 +59,10 @@ Applications in R}. Boca Raton: Chapman and Hall/CRC.
 
 \examples{
 \dontrun{
-lmeFit <- lme(log(serBilir) ~ ns(year, 3),
-    random = list(id = pdDiag(form = ~ ns(year, 3))), data = pbc2)
-survFit <- coxph(Surv(years, status2) ~ drug, data = pbc2.id, x = TRUE)
-jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year", 
-    survMod = "spline-PH")
+lmeFit <- lme(log(serBilir) ~ ns(year, 2), data = pbc2,
+              random = ~ ns(year, 2) | id)
+survFit <- coxph(Surv(years, status2) ~ 1, data = pbc2.id, x = TRUE)
+jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year")
 
 fitted(jointFit, process = "Event")
 residuals(jointFit, type = "Subject", standardized = TRUE)

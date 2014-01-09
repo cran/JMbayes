@@ -101,10 +101,9 @@ pbc2.id$status2 <- as.numeric(pbc2.id$status != "alive")
 lmeFit <- lme(log(serBilir) ~ ns(year, 3),
     random = list(id = pdDiag(form = ~ ns(year, 3))), data = pbc2)
 survFit <- coxph(Surv(years, status2) ~ drug, data = pbc2.id, x = TRUE)
-jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year", 
-    survMod = "spline-PH")
+jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year")
 
-# prediction error at year 10 using longitudinal data up to year 5 
+# AUC using data up to year 5 with horizon at year 8 
 aucJM(jointFit, pbc2, Tstart = 5, Thoriz = 8)
 }
 }

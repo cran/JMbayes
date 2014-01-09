@@ -13,7 +13,7 @@ function (object, newdata, Tstart, Thoriz = NULL, Dt = NULL, idVar = "id",
         Thoriz <- Tstart + Dt
     id <- newdata[[idVar]]
     id <- match(id, unique(id))
-    TermsT <- object$termsT
+    TermsT <- object$Terms$termsT
     SurvT <- model.response(model.frame(TermsT, newdata)) 
     Time <- SurvT[, 1]
     timeVar <- object$timeVar

@@ -3,42 +3,33 @@ function (t, b, ii, Mats) {
     if (t == 0)
         return(1)
     idT.i <- idT %in% ii
+    ids.i <- ids %in% ii
     st <- Mats$st
     wk <- Mats$wk
     P <- Mats$P
     Xs <- Mats$Xs
     Zs <- Mats$Zs
-    Xs.deriv <- Mats$Xs.deriv
-    Zs.deriv <- Mats$Zs.deriv
-    Ws.intF.vl <- Mats$Ws.intF.vl
-    Ws.intF.sl <- Mats$Ws.intF.sl
+    Xs.extra <- Mats$Xs.extra
+    Zs.extra <- Mats$Zs.extra
+    W2s <- Mats$W2s
     ind <- Mats$ind
+    idT <- Mats$idT
     if (param %in% c("td-value", "td-both"))
-        Ys <- as.vector(Xs %*% betas.new + rowSums(Zs * rep(b, each = nrow(Zs))))
+        Ys <- transFun.value(c(Xs %*% betas.new + Zs %*% b), data.s[ids.i, ])
     if (param %in% c("td-extra", "td-both"))
-        Ys.deriv <- as.vector(Xs.deriv %*% betas.new[indFixed]) + 
-            rowSums(Zs.deriv * rep(b[indRandom], each = nrow(Zs)))
-    tt <- switch(param,
-        "td-value" = c(Ws.intF.vl %*% alpha.new) * Ys, 
-        "td-extra" = c(Ws.intF.sl %*% Dalpha.new) * Ys.deriv,
-        "td-both" = c(Ws.intF.vl %*% alpha.new) * Ys + 
-            c(Ws.intF.sl %*% Dalpha.new) * Ys.deriv,
-        "shared-RE" = rep(sum(b * alpha.new), length(st)))
+        Ys.extra <- transFun.extra(c(Xs.extra %*% betas.new[indFixed] + Zs.extra %*% b[indRandom]), data.s[ids.i, ])
+    tt <- c(switch(param,
+                   "td-value" = as.matrix(Ys) %*% alphas.new, 
+                   "td-extra" =  as.matrix(Ys.extra) %*% Dalphas.new,
+                   "td-both" = as.matrix(Ys) %*% alphas.new + as.matrix(Ys.extra) %*% Dalphas.new,
+                   "shared-betasRE" = rep(sum((betas[indBetas] + b) * alphas.new), length(st)),
+                   "shared-RE" = rep(sum(b * alphas.new), length(st))))
     eta.tw <- if (!is.null(W)) {
         as.vector(W[ii, , drop = FALSE] %*% gammas.new)
     } else 0
-    log.survival <- if (survMod == "weibull-PH") {
-        Vi <- exp(log(sigma.t.new) + (sigma.t.new - 1) * log(st) + tt)
-        - exp(eta.tw) * P * sum(wk * Vi)
-    } else if (survMod == "spline-PH") {
-        kn <- object$control$knots
-        W2s <- splineDesign(unlist(kn, use.names = FALSE), st, 
-            ord = object$control$ordSpline, outer.ok = TRUE)
-        Vi <- exp(c(W2s %*% Bs.gammas.new) + tt)
-        ind <- Mats$st < min(kn)
-        wk[ind] <- 0
-        idT <- rep(seq_along(P), each = 15)
-        - sum(exp(eta.tw) * P * tapply(wk * Vi, idT, sum))
-    }
+    Vi <- exp(c(W2s %*% Bs.gammas.new) + tt)
+    ind <- Mats$st < min(Mats$kn)
+    wk[ind] <- 0
+    log.survival <- - sum(exp(eta.tw) * P * fastSumID(wk * Vi, idT))
     exp(log.survival)
 }

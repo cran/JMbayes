@@ -6,37 +6,35 @@ function (object, process = c("Longitudinal", "longitudinal", "Event", "event"),
     process <- match.arg(process)
     type <- match.arg(type)
     if (process == "Longitudinal" || process == "longitudinal") {
-        fitY <- c(object$x$X %*% object$coefficients$betas)
-        names(fitY) <- names(object$y$y)
+        fitY <- c(object$x$X %*% object$postMeans$betas)
+        names(fitY) <- row.names(object$Data$data)
         if (type == "Subject" || type == "subject")
-            fitY <- fitY + rowSums(object$x$Z * ranef(object)[object$id, ])
+            fitY <- fitY + rowSums(object$x$Z * ranef(object)[object$y$id, ])
         fitY
     } else {
-        survMod <- object$survMod
+        Data <- object$Data
+        Funs <- object$Funs
+        Forms <- object$Forms
         timeVar <- object$timeVar
-        robust <- object$robust
-        robust.b <- object$robust.b
-        df <- object$df
-        df.b <- object$df.b
         param <- object$param
-        extraForm <- object$extraForm
-        indFixed <- extraForm$indFixed
-        indRandom <- extraForm$indRandom
+        indFixed <- Forms$extraForm$indFixed
+        indRandom <- Forms$extraForm$indRandom
         lag <- object$y$lag
-        TermsX <- object$termsYx
-        TermsZ <- object$termsYz
-        TermsX.deriv <- object$termsYx.deriv
-        TermsZ.deriv <- object$termsYz.deriv
+        TermsX <- object$Terms$termsYx
+        TermsZ <- object$Terms$termsYz
+        TermsX.extra <- object$Terms$termsYx.extra
+        TermsZ.extra <- object$Terms$termsYz.extra
         formYx <- reformulate(attr(delete.response(TermsX), "term.labels"))
-        formYz <- object$formYz
-        times <- object$data[[timeVar]]
+        formYz <- Forms$formYz
+        times <- Data$data[[timeVar]]
         wk <- gaussKronrod()$wk
         sk <- gaussKronrod()$sk
         K <- length(sk)
         P <- times/2
         st <- outer(P, sk + 1)
         id.GK <- rep(seq_along(times), each = K)
-        data.id2 <- object$data.id[rep(object$id, each = K), ]
+        indBetas <- object$y$indBetas
+        data.id2 <- Data$data.id[rep(object$y$id, each = K), ]
         data.id2[[timeVar]] <- pmax(c(t(st)) - lag, 0)
         if (param %in% c("td-value", "td-both")) {
             mfX <- model.frame(TermsX, data = data.id2)
@@ -45,51 +43,46 @@ function (object, process = c("Longitudinal", "longitudinal", "Event", "event"),
             Zs <- model.matrix(formYz, mfZ)
         }
         if (param %in% c("td-extra", "td-both")) {
-            mfX.deriv <- model.frame(TermsX.deriv, data = data.id2)
-            mfZ.deriv <- model.frame(TermsZ.deriv, data = data.id2)
-            Xs.deriv <- model.matrix(extraForm$fixed, mfX.deriv)
-            Zs.deriv <- model.matrix(extraForm$random, mfZ.deriv)
+            mfX.extra <- model.frame(TermsX.extra, data = data.id2)
+            mfZ.extra<- model.frame(TermsZ.extra, data = data.id2)
+            Xs.extra <- model.matrix(Forms$extraForm$fixed, mfX.extra)
+            Zs.extra <- model.matrix(Forms$extraForm$random, mfZ.extra)
         }
-        betas <- object$coefficients$betas
-        sigma <- object$coefficients$sigma
-        D <- object$coefficients$D
-        gammas <- object$coefficients$gammas
-        alpha <- object$coefficients$alpha
-        Dalpha <- object$coefficients$Dalpha
+        betas <- object$postMeans$betas
+        sigma <- object$postMeans$sigma
+        D <- object$postMeans$D
+        gammas <- object$postMeans$gammas
+        alphas <- object$postMeans$alphas
+        Dalphas <- object$postMeans$Dalphas
         if (nullY) {
-            alpha <- rep(0, length.out = length(alpha))
-            Dalpha <- 0
+            alphas <- rep(0, length.out = length(alphas))
+            Dalphas <- rep(0, length.out = length(Dalphas))
         }
-        sigma.t <- object$coefficients$sigma.t
-        Bs.gammas <- object$coefficients$Bs.gammas
+        Bs.gammas <- object$postMeans$Bs.gammas
         b <- ranef(object)
-        idK <- rep(object$id, each = K)
+        idK <- rep(object$y$id, each = K)
         b <- b[idK, ]
         if (param %in% c("td-value", "td-both")) {
-            Ys <- as.vector(Xs %*% betas + rowSums(Zs * b))
+            Ys <- Funs$transFun.value(as.vector(Xs %*% betas + rowSums(Zs * b)), data.id2)
         }
         if (param %in% c("td-extra", "td-both")) {
-            Ys.deriv <- as.vector(Xs.deriv %*% betas[indFixed]) + 
-                rowSums(Zs.deriv * b[, indRandom, drop = FALSE])
+            Ys.extra <- Funs$transFun.extra(as.vector(Xs.extra %*% betas[indFixed]) + 
+                rowSums(Zs.extra * b[, indRandom, drop = FALSE]), data.id2)
         }
-        tt <- switch(param,
-                     "td-value" = alpha * Ys, 
-                     "td-extra" = Dalpha * Ys.deriv,
-                     "td-both" = alpha * Ys + Dalpha * Ys.deriv,
-                     "shared-RE" = c(b %*% alpha))
-        W <- object$x$W[object$id, seq_along(gammas), drop = FALSE]
-        eta.tw <- if (ncol(W)) c(W %*% gammas) else rep(0, length(tt))
-        cumHaz <- if (survMod == "weibull-PH") {
-            Vi <- exp(log(sigma.t) + (sigma.t - 1) * log(c(t(st))) + tt)
-            exp(eta.tw) * P * tapply(rep(wk, length.out = length(Vi)) * Vi, id.GK, sum)
-        } else if (survMod == "spline-PH") {
-            kn <- object$control$knots
-            W2s <- splineDesign(unlist(kn, use.names = FALSE), c(t(st)), 
-                                ord = object$control$ordSpline, outer.ok = TRUE)
-            Vi <- exp(c(W2s %*% Bs.gammas) + tt)
-            exp(eta.tw) * P * tapply(rep(wk, length.out = length(Vi)) * Vi, id.GK, sum)
-        }
-        names(cumHaz) <- names(object$y$y)
+        tt <- c(switch(param,
+                     "td-value" = as.matrix(Ys) %*% alphas, 
+                     "td-extra" = as.matrix(Ys.extra) %*% Dalphas,
+                     "td-both" = as.matrix(Ys) %*% alphas +  as.matrix(Ys.extra) %*% Dalphas,
+                     "shared-betasRE" = (rep(betas[indBetas], each = nrow(b)) + b) %*% alphas,
+                     "shared-RE" = b %*% alphas))
+        W <- object$x$W[object$y$id, seq_along(gammas), drop = FALSE]
+        eta.tw <- if (!is.null(W)) c(W %*% gammas) else rep(0, length(object$y$id))
+        kn <- object$control$knots
+        W2s <- splineDesign(unlist(kn, use.names = FALSE), c(t(st)), 
+                            ord = object$control$ordSpline, outer.ok = TRUE)
+        Vi <- exp(c(W2s %*% Bs.gammas) + tt)
+        cumHaz <- exp(eta.tw) * P * tapply(rep(wk, length.out = length(Vi)) * Vi, id.GK, sum)
+        names(cumHaz) <- row.names(Data$data)
         cumHaz
     }
 }

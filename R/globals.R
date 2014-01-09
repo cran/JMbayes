@@ -1,11 +1,8 @@
 
 if (getRversion() >= '2.15.1') 
-    utils::globalVariables(c('betas.new', 'indFixed', 'indRandom', 'alpha.new', 
-    'Dalpha.new', 'W', 'gammas.new', 'survMod', 'sigma.t.new', 'object',
-    'Bs.gammas.new', 'N', 'inprod', 'betas', 'ncX', 'X', 'b', 'ncZ', 'Z', 
-    'gammas', 'ncW', 'alphas', 'nb', 'Xtime', 'Ztime', 'Xtime.deriv', 'ncX.deriv', 'Ztime.deriv',
-    'ncZ.deriv', 'sigma.t', 'logTime', 'Dalphas', 'K', 'Xs', 'Zs', 'Xs.deriv', 'Zs.deriv', 
-    'wk', 'pow', 'st', 'P', 'event', 'id', 'robust', 'robust.b', 'df.b', 'sigma.new', 'D.new', 'Bs.gammas','ncW2', 'W2', 'W2s',
-    'data.id', 'timeVar', 'param', 'TermsX', 'TermsZ', 'formYx', 'formYz', 'WintF.vl',
-    'TermsX.deriv', 'TermsZ.deriv', 'extraForm', 'xtable', 'WintF.sl', 'log<-'))
+    utils::globalVariables(c('data.id', 'timeVar', 'param', 'TermsX', 'TermsZ', 'formYx', 'formYz', 'TermsX.extra', 'TermsZ.extra',
+'extraForm', 'param', 'transFun.value', 'betas.new', 'data.s', 'ids.i', 'transFun.extra', 'indFixed', 'indRandom',
+'alphas.new', 'Ys.extra', 'Dalphas.new', 'betas', 'indBetas', 'W', 'gammas.new', 'object', 'Bs.gammas.new',
+'id', 'ids', 'data.s', 'idVar', 'X', 'Z', 'betas.new', 'densLong', 'sigma.new', 'newdata', 'densRE', 'indFixed', 'indRandom', 'alphas.new',
+'Ys.extra', 'Dalphas.new', 'betas', 'indBetas', 'W', 'gammas.new', 'object', 'Bs.gammas.new', 'xtable', 'D.new'))
 

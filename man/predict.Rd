@@ -12,7 +12,7 @@
 \method{predict}{JMbayes}(object, newdata, type = c("Marginal", "Subject"),
     interval = c("none", "confidence", "prediction"), level = 0.95, idVar = "id", 
     FtTimes = NULL, M = 300, returnData = FALSE, scale = 1.6, 
-    weight = rep(1, nrow(newdata)), \dots)
+    weight = rep(1, nrow(newdata)), invlink = NULL, \dots)
 }
 
 \arguments{
@@ -40,6 +40,9 @@
         of the empirical Bayes estimates in the Metropolis step during the 
         Monte Carlo sampling.}
   \item{weight}{a numeric vector of weights to be applied to the predictions of each subject.}
+  \item{invlink}{a function to tranform the linear predictor of the mixed model to fitted means;
+        relevant when the user has specified her own density for the longitudinal outcome in 
+        \code{\link{jointModelBayes}}.}
   \item{\dots}{additional arguments; currently none is used.}
 }
 
@@ -73,6 +76,11 @@
   added.
 }
 
+\note{
+  The user is responsible to appropriately set the \code{invlink} argument when a user-specified
+  mixed effects model has been fitted.
+}
+
 \author{Dimitris Rizopoulos \email{d.rizopoulos@erasmusmc.nl}}
 
 \references{
@@ -96,6 +104,7 @@ fitJOINT <- jointModelBayes(fitLME, fitSURV, timeVar = "year")
 DF <- with(pbc2, expand.grid(drug = levels(drug),
     year = seq(min(year), max(year), len = 100)))
 Ps <- predict(fitJOINT, DF, interval = "confidence", return = TRUE)
+require(lattice)
 xyplot(pred + low + upp ~ year | drug, data = Ps,
     type = "l", col = c(2,1,1), lty = c(1,2,2), lwd = 2,
     ylab = "Average log serum Bilirubin")
@@ -105,7 +114,6 @@ xyplot(pred + low + upp ~ year | drug, data = Ps,
 ND <- pbc2[pbc2$id == 2, ]
 Ps.ss <- predict(fitJOINT, ND, type = "Subject",
   interval = "confidence", return = TRUE)
-require(lattice)
 xyplot(pred + low + upp ~ year | id, data = Ps.ss,
     type = "l", col = c(2,1,1), lty = c(1,2,2), lwd = 2,
     ylab = "Average log serum Bilirubin")

@@ -10,8 +10,9 @@ function (x, df = NULL, knots = NULL, intercept = FALSE, Boundary.knots = range(
     } 
     kn <- attr(bs.x, "knots")
     Bkn <- attr(bs.x, "Boundary.knots")
-    wk <- gaussKronrod(15)$wk
-    sk <- gaussKronrod(15)$sk
+    GK <- gaussKronrod(15)
+    wk <- GK$wk
+    sk <- GK$sk
     P1 <- (x + from) / 2
     P2 <- (x - from) / 2
     st <- outer(P2, sk) + P1

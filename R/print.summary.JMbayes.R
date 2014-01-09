@@ -1,50 +1,55 @@
 print.summary.JMbayes <-
-function (x, digits = max(4, getOption("digits") - 4), 
-        printKnots = FALSE, ...) {
+function (x, digits = max(4, getOption("digits") - 4),
+                                   printKnots = FALSE, ...) {
     if (!inherits(x, "summary.JMbayes"))
         stop("Use only with 'summary.JMbayes' objects.\n")
-    cat("\nCall:\n", paste(deparse(x$call), sep = "\n", 
-        collapse = "\n"), "\n\n", sep = "")
+    cat("\nCall:\n", printCall(x$call), "\n\n", sep = "")
     cat("Data Descriptives:\n")
     pcEv <- round(100 * sum(x$d) / x$n, 1)
     cat("Longitudinal Process\t\tEvent Process")
-    cat("\nNumber of Observations: ", x$N, "\tNumber of Events: ", 
+    cat("\nNumber of Observations: ", x$N, "\tNumber of Events: ",
         sum(x$d), " (", pcEv, "%)", sep = "")
-    cat("\nNumber of Groups:", length(unique(x$id)))
+    cat("\nNumber of subjects:", x$n)
     cat("\n\nJoint Model Summary:")
-    if (!x$robust && !x$robust.b) {
-        cat("\nLongitudinal Process: Linear mixed-effects model")
-    } else if (x$robust && !x$robust.b) {
-        cat("\nLongitudinal Process: Linear mixed-effects model with Student's-t(df=", x$df, ") errors", sep = "")
-    } else if (!x$robust && x$robust.b) {
-        cat("\nLongitudinal Process: Linear mixed-effects model with Student's-t(df=", x$df.b, ") random effects", sep = "")
+    if (x$densLongCheck) {
+        if (is.null(x$df.RE)) {
+            cat("\nLongitudinal Process: Linear mixed-effects model")
+        } else {
+            cat("\nLongitudinal Process: Linear mixed-effects model with Student's-t(df=", x$df.RE, ") random effects", sep = "")        
+        }
     } else {
-        cat("\nLongitudinal Process: Linear mixed-effects model with Student's-t(df=", x$df, ") errors and\n\t\t",
-            "Student's-t(df=", x$df.b, ") random effects", sep = "")
+        if (is.null(x$df.RE)) {
+            cat("\nLongitudinal Process: user-defined mixed model")
+        } else {
+            cat("\nLongitudinal Process: user-defined mixed model with Student's-t(df=", x$df.RE, ") random effects", sep = "")        
+        }
     }
     cat("\nEvent Process: ")
-    if (x$survMod == "weibull-PH") {
-        cat("Weibull relative risk model\n")
-    } else if (x$survMod == "spline-PH") {
-        xx <- if (length(x$control$knots) == 1) {
-            kk <- round(unique(x$control$knots[[1]]), 1)
+    xx <- if (length(x$control$knots) == 1) {
+        kk <- round(unique(x$control$knots[[1]]), 1)
+        paste(kk[-c(1, length(kk))], collapse = ", ")
+    } else {
+        paste(names(x$control$knots), sapply(x$control$knots, function (k) {
+            kk <- round(unique(k), 1)
             paste(kk[-c(1, length(kk))], collapse = ", ")
-        } else {
-            paste(names(x$control$knots), sapply(x$control$knots, function (k) {
-                kk <- round(unique(k), 1)
-                paste(kk[-c(1, length(kk))], collapse = ", ")
-            }), sep = ": ", collapse = "\n\t\t")
-        }
-        if (printKnots)
-            cat("Relative risk model with spline-approximated baseline risk function (knots at: ", xx, ")\n", sep = "")
-        else
-            cat("Relative risk model with spline-approximated\n\t\tbaseline risk function\n")
+        }), sep = ": ", collapse = "\n\t\t")
     }
-    cat("Parameterization:", switch(x$param, "td-value" = "Time-dependent", 
-        "td-extra" = "Time-dependent slope", "td-both" = "Time-dependent + time-dependent slope",
-        "shared-RE" = "shared random effects"), "\n\n")
-    if (!is.null(x$DIC)){ 
-        model.sum <- data.frame(logLik = x$logLik, DIC = x$DIC, pD = x$pD, row.names = "")
+    ttE <- if (x$baseHaz == "P-splines") "penalized-spline-approximated" else "spline-approximated"
+    if (printKnots)
+        cat("Relative risk model with ", ttE, " baseline risk function (knots at: ", xx, ")\n", sep = "")
+    else
+        cat("Relative risk model with", ttE, "\n\t\tbaseline risk function\n")
+    if (x$estimateWeightFun) {
+        cat("Parameterization: weighted cumulative effect\n\n")
+    } else {
+        cat("Parameterization:", switch(x$param, "td-value" = "Time-dependent value",
+                                        "td-extra" = "Time-dependent extra term", 
+                                        "td-both" = "Time-dependent value + time-dependent extra term",
+                                        "shared-betasRE" = "shared subject-specific coefficients",
+                                        "shared-RE" = "shared random effects"), "\n\n")
+    }
+    if (!is.null(x$DIC)){
+        model.sum <- data.frame(LPML = x$LPML, DIC = x$DIC, pD = x$pD, row.names = "")
         print(model.sum)
     }
     cat("\nVariance Components:\n")
@@ -70,22 +75,23 @@ function (x, digits = max(4, getOption("digits") - 4),
             row.names(dat) <- c(dimnames(D)[[1]], "Residual")
         }
     } else {
-        dat <- data.frame("StdDev" = c(sds, x$sigma), row.names = c(rownames(D), "Residual"), 
-            check.rows = FALSE, check.names = FALSE)
+        dat <- data.frame("StdDev" = c(sds, x$sigma), row.names = c(rownames(D), "Residual"),
+                          check.rows = FALSE, check.names = FALSE)
     }
     print(dat)
     cat("\nCoefficients:")
     cat("\nLongitudinal Process\n")
     out <- as.data.frame(round(x$"CoefTable-Long", digits))
+    out$P <- format.pval2(out$P, digits = digits, eps = 1e-03)
     print(out)
     cat("\nEvent Process\n")
     out <- as.data.frame(round(x$"CoefTable-Event", digits))
+    out$P <- format.pval2(out$P, digits = digits, eps = 1e-03)
     print(out)
-    cat("\nMCMC summary:\n")
-    cat("program:", switch(x$control$program, "WinBUGS" =, "winbugs" = "WinBUGS",
-        "OpenBUGS" =, "openbugs" = "OpenBUGS", "JAGS" =, "jags" = "JAGS"), "\n")
-    cat("chains:", x$control$n.chains, "\nthinning:", x$control$n.thin, "\n")
-    cat("iterations:", x$control$n.iter, "\nburn-in:", x$control$n.burnin)
+    cat("\nMCMC iteration summary:\n")
+    cat("iterations:", x$control$n.iter, "\nadapt:", x$control$n.adapt, 
+        "\nburn-in:", x$control$n.burnin, "\nthinning:", x$control$n.thin,
+        "\ntime:", round(x$time["elapsed"]/60, 1), "min")
     cat("\n")
-    invisible(x)    
+    invisible(x)
 }

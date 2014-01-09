@@ -5,13 +5,13 @@
 \title{MCMC Diagnostics for Joint Models}
 
 \description{
-  Produces MCMC diagnostics plots based on the \bold{coda} package.
+  Produces MCMC diagnostics plots.
 }
 
 \usage{
-\method{plot}{JMbayes}(x, which = c("trace", "autocorr"), 
-    param = c("betas", "tau", "inv.D", "gammas", "alphas", "Dalphas", 
-        "sigma.t", "Bs.gammas"), ask = TRUE, \dots)
+\method{plot}{JMbayes}(x, which = c("trace", "autocorr", "CPO"), 
+    param = c("betas", "sigma", "D", "gammas", "alphas", "Dalphas", 
+        "shapes", "Bs.gammas", "tauBs"), ask = TRUE, \dots)
 }
 
 \arguments{

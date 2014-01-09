@@ -61,12 +61,11 @@
 
 \examples{
 \dontrun{
-lmeFit <- lme(log(serBilir) ~ ns(year, 3),
-    random = list(id = pdDiag(form = ~ ns(year, 3))), data = pbc2)
+lmeFit <- lme(log(serBilir) ~ ns(year, 2), data = pbc2, 
+    random = ~ ns(year, 2) | id)
 survFit <- coxph(Surv(years, status2) ~ 1, data = pbc2.id, x = TRUE)
 
-jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year", survMod = "weibull-PH", 
-    program = "openbugs")
+jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year")
 
 logLik(jointFit)
 logLik(jointFit, priors = FALSE)

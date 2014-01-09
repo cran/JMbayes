@@ -5,17 +5,13 @@ function (n) {
     for (i in seq_len(m)) {
         z <- if (i == 1) {
             sqrt(2 * n + 1) - 1.85575 * (2 * n + 1)^(-0.16667)
-        }
-        else if (i == 2) {
+        } else if (i == 2) {
             z - 1.14 * n^0.426/z
-        }
-        else if (i == 3) {
+        } else if (i == 3) {
             1.86 * z - 0.86 * x[1]
-        }
-        else if (i == 4) {
+        } else if (i == 4) {
             1.91 * z - 0.91 * x[2]
-        }
-        else {
+        } else {
             2 * z - x[i - 2]
         }
         for (its in seq_len(10)) {

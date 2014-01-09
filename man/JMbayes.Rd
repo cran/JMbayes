@@ -9,7 +9,7 @@ Joint Modeling of Longitudinal and Time-to-Event Data in R under a Bayesian Appr
 
 \description{
 This package fits shared parameter models for the joint modeling of normal longitudinal responses and event times 
-under a Bayesian approach using WinBUGS, OpenBUGS and JAGS. Various options for the survival model and the association structure are
+under a Bayesian approach. Various options for the survival model and the association structure are
 provided.
 }
 
@@ -17,8 +17,8 @@ provided.
 \tabular{ll}{
 Package: \tab JMbayes\cr
 Type: \tab Package\cr
-Version: \tab 0.4-1\cr
-Date: \tab 2013-06-06\cr
+Version: \tab 0.5-0\cr
+Date: \tab 2014-01-09\cr
 License: \tab GPL (>=2)\cr
 }
 

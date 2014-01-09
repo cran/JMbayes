@@ -40,12 +40,11 @@ pbc2.id$status2 <- as.numeric(pbc2.id$status != "alive")
 # we fit a joint model using splines for the subject-specific 
 # longitudinal trajectories and a spline-approximated baseline
 # risk function
-lmeFit <- lme(log(serBilir) ~ ns(year, 3),
-    random = list(id = pdDiag(form = ~ ns(year, 3))), data = pbc2)
+lmeFit <- lme(log(serBilir) ~ ns(year, 2), data = pbc2,
+    random = ~ ns(year, 2) | id)
 survFit <- coxph(Surv(years, status2) ~ drug, data = pbc2.id, x = TRUE)
 
-jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year", 
-    survMod = "spline-PH")
+jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year")
 
 # we compute marginal log-likelihood contribution for Subject 2
 ND <- pbc2[pbc2$id == 2, ] # the data of Subject 2

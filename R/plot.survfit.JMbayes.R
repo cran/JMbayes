@@ -1,5 +1,5 @@
 plot.survfit.JMbayes <-
-function (x, estimator = c("both", "mean", "median"), which = NULL, fun = NULL, conf.int = FALSE,
+function (x, estimator = c("both", "mean", "median"), which = NULL, fun = NULL, invlink = NULL, conf.int = FALSE,
         fill.area = FALSE, col.area = "grey", col.abline = "black", col.points = "black", 
         add.last.time.axis.tick = FALSE, include.y = FALSE, main = NULL, xlab = NULL, ylab = NULL, ylab2 = NULL,
         lty = NULL, col = NULL, lwd = NULL, pch = NULL, ask = NULL, legend = FALSE, ..., cex.axis.z = 1, 
@@ -89,7 +89,8 @@ function (x, estimator = c("both", "mean", "median"), which = NULL, fun = NULL, 
             rng <- if (is.null(xlim)) range(x$obs.times[[ii]], x$survTimes) else xlim
             plot(x$obs.times[[ii]], x$y[[ii]], xlim = rng, ylim = x$ry,
                 xlab = xlab[i], ylab = ylab2, pch = pch, col = col.points, ...)
-            lines(x$fitted.times[[ii]], x$fitted.y[[ii]], col = col, lwd = lwd)
+            ff <- if (!is.null(invlink)) invlink(x$fitted.y[[ii]]) else x$fitted.y[[ii]]
+            lines(x$fitted.times[[ii]], ff, col = col, lwd = lwd)
             abline(v = lt, lty = 3, col = col.abline)
             par(new = TRUE)
             matplot(r.[, 1], r.[, -1, drop = FALSE], type = "l", col = col, lwd = lwd, 

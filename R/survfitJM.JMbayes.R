@@ -1,6 +1,7 @@
 survfitJM.JMbayes <-
 function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL, 
-            last.time = NULL, M = 200, CI.levels = c(0.025, 0.975), scale = 1.6, weight = rep(1, nrow(newdata)), ...) {
+            last.time = NULL, M = 200, CI.levels = c(0.025, 0.975), scale = 1.6, 
+                               weight = rep(1, nrow(newdata)), seed = 1, ...) {
     if (!inherits(object, "JMbayes"))
         stop("Use only with 'JMbayes' objects.\n")
     if (!is.data.frame(newdata) || nrow(newdata) == 0)
@@ -8,27 +9,28 @@ function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL,
     if (is.null(newdata[[idVar]]))
         stop("'idVar' not in 'newdata.\n'")
     if (is.null(survTimes) || !is.numeric(survTimes))
-        survTimes <- seq(min(exp(object$y$logT)), 
-            max(exp(object$y$logT)) + 0.1, length.out = 35)
-    survMod <- object$survMod
+        survTimes <- seq(min(object$y$Time), 
+            max(object$y$Time) + 0.1, length.out = 35)
     timeVar <- object$timeVar
-    interFact <- object$interFact
-    robust <- object$robust
-    robust.b <- object$robust.b
-    df <- object$df
-    df.b <- object$df.b
+    df.RE <- object$y$df.RE
     param <- object$param
-    extraForm <- object$extraForm
+    densLong <- object$Funs$densLong
+    hasScale <- object$Funs$hasScale
+    densRE <- object$Funs$densRE
+    transFun.value <- object$Funs$transFun.value
+    transFun.extra <- object$Funs$transFun.extra
+    extraForm <- object$Forms$extraForm
     indFixed <- extraForm$indFixed
     indRandom <- extraForm$indRandom
-    TermsX <- object$termsYx
-    TermsZ <- object$termsYz
-    TermsX.deriv <- object$termsYx.deriv
-    TermsZ.deriv <- object$termsYz.deriv
+    indBetas <- object$y$indBetas
+    TermsX <- object$Terms$termsYx
+    TermsZ <- object$Terms$termsYz
+    TermsX.extra <- object$Terms$termsYx.extra
+    TermsZ.extra <- object$Terms$termsYz.extra
     mfX <- model.frame(TermsX, data = newdata)
     mfZ <- model.frame(TermsZ, data = newdata)
     formYx <- reformulate(attr(delete.response(TermsX), "term.labels"))
-    formYz <- object$formYz
+    formYz <- object$Forms$formYz
     na.ind <- as.vector(attr(mfX, "na.action"))
     na.ind <- if (is.null(na.ind)) {
         rep(TRUE, nrow(newdata))
@@ -41,30 +43,17 @@ function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL,
     y <- model.response(mfX)
     X <- model.matrix(formYx, mfX)
     Z <- model.matrix(formYz, mfZ)[na.ind, , drop = FALSE]
-    TermsT <- object$termsT
+    TermsT <- object$Terms$termsT
     data.id <- newdata[!duplicated(id), ]
+    data.s <- data.id[rep(1:nrow(data.id), each = 15), ]
     idT <- data.id[[idVar]]
     idT <- match(idT, unique(idT))
+    ids <- data.s[[idVar]]
+    ids <- match(ids, unique(ids))
     mfT <- model.frame(delete.response(TermsT), data = data.id)
-    formT <- if (!is.null(kk <- attr(TermsT, "specials")$strata)) {
-        strt <- eval(attr(TermsT, "variables"), data.id)[[kk]]
-        tt <- drop.terms(TermsT, kk - 1, keep.response = FALSE)
-        reformulate(attr(tt, "term.labels"))
-    } else if (!is.null(kk <- attr(TermsT, "specials")$cluster)) {
-        tt <- drop.terms(TermsT, kk - 1, keep.response = FALSE)
-        reformulate(attr(tt, "term.labels"))
-    } else {
-        tt <- attr(delete.response(TermsT), "term.labels")
-        if (length(tt)) reformulate(tt) else reformulate("1")
-    }
-    W <- model.matrix(formT, mfT)
-    WintF.vl <- WintF.sl <- as.matrix(rep(1, nrow(data.id)))
-    if (!is.null(interFact)) {
-        if (!is.null(interFact$value))
-            WintF.vl <- model.matrix(interFact$value, data = data.id)
-        if (!is.null(interFact$slope))
-            WintF.sl <- model.matrix(interFact$slope, data = data.id)
-    }
+    tt <- attr(delete.response(TermsT), "term.labels")
+    formT <- if (length(tt)) reformulate(tt) else reformulate("1")
+    W <- model.matrix(formT, mfT)[, -1, drop = FALSE]
     obs.times <- split(newdata[[timeVar]][na.ind], id)
     last.time <- if (is.null(last.time)) {
         tapply(newdata[[timeVar]], id., tail, n = 1)
@@ -76,31 +65,23 @@ function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL,
         stop("\nnot appropriate value for 'last.time' argument.")
     }
     times.to.pred <- lapply(last.time, function (t) survTimes[survTimes > t])
-    n <- object$n
+    n <- length(object$y$Time)
     n.tp <- length(last.time)
     ncx <- ncol(X)
     ncz <- ncol(Z)
     ncww <- ncol(W)
+    if (ncww == 0)
+        W <- NULL
     lag <- object$y$lag
-    betas <- object$coefficients$betas
-    sigma <- object$coefficients$sigma
-    D <- object$coefficients$D
-    gammas <- object$coefficients$gammas
-    alpha <- object$coefficients$alpha
-    Dalpha <- object$coefficients$Dalpha
-    sigma.t <- object$coefficients$sigma.t
-    Bs.gammas <- object$coefficients$Bs.gammas
-    list.thetas <- list(betas = betas, sigma = sigma, gammas = gammas, alpha = alpha, 
-            Dalpha = Dalpha, sigma.t = sigma.t, Bs.gammas = Bs.gammas, D = D)
-    if (survMod == "spline-PH") {
-        if (ncww == 1) {
-            W <- NULL
-            ncww <- 0
-        } else {
-            W <- W[, -1, drop = FALSE]
-            ncww <- ncww - 1
-        }
-    }
+    betas <- object$postMeans$betas
+    sigma <- object$postMeans$sigma
+    D <- object$postMeans$D
+    gammas <- object$postMeans$gammas
+    alphas <- object$postMeans$alphas
+    Dalphas <- object$postMeans$Dalphas
+    Bs.gammas <- object$postMeans$Bs.gammas
+    list.thetas <- list(betas = betas, sigma = sigma, gammas = gammas, alphas = alphas, 
+                        Dalphas = Dalphas, Bs.gammas = Bs.gammas, D = D)
     list.thetas <- list.thetas[!sapply(list.thetas, is.null)]
     thetas <- unlist(as.relistable(list.thetas))
     Var.thetas <- vcov(object)
@@ -114,25 +95,25 @@ function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL,
     }
     # calculate the Empirical Bayes estimates and their (scaled) variance
     modes.b <- matrix(0, n.tp, ncz)
-    Vars.b <- vector("list", n.tp)
+    invVars.b <- Vars.b <- vector("list", n.tp)
     for (i in seq_len(n.tp)) {
         betas.new <- betas
         sigma.new <- sigma
         D.new <- D
         gammas.new <- gammas
-        alpha.new <- alpha
-        Dalpha.new <- Dalpha
-        sigma.t.new <- sigma.t
+        alphas.new <- alphas
+        Dalphas.new <- Dalphas
         Bs.gammas.new <- Bs.gammas
-        ff <- function (b, y, tt, mm, i) -log.posterior.b(b, y, Mats = tt, survMod = mm, ii = i)
-        opt <- try(optim(rep(0, ncz), ff, y = y, tt = survMats.last, mm = survMod, i = i, 
+        ff <- function (b, y, tt, mm, i) -log.posterior.b(b, y, Mats = tt, ii = i)
+        opt <- try(optim(rep(0, ncz), ff, y = y, tt = survMats.last, i = i, 
             method = "BFGS", hessian = TRUE), TRUE)
         if (inherits(opt, "try-error")) {
-            gg <- function (b, y, tt, mm, i) cd(b, ff, y = y, tt = tt, mm = mm, i = i)
-            opt <- optim(rep(0, ncz), ff, gg, y = y, tt = survMats.last, mm = survMod, 
+            gg <- function (b, y, tt, mm, i) cd(b, ff, y = y, tt = tt, i = i)
+            opt <- optim(rep(0, ncz), ff, gg, y = y, tt = survMats.last, 
                 i = i, method = "BFGS", hessian = TRUE, control = list(parscale = rep(0.1, ncz)))
         } 
         modes.b[i, ] <- opt$par
+        invVars.b[[i]] <- opt$hessian/scale
         Vars.b[[i]] <- scale * solve(opt$hessian)
     }
     if (!simulate) {
@@ -146,59 +127,51 @@ function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL,
             rownames(res[[i]]) <- seq_along(S.pred) 
         }
     } else {
+        set.seed(seed)
         out <- vector("list", M)
         success.rate <- matrix(FALSE, M, n.tp)
         b.old <- b.new <- modes.b
         if (n.tp == 1)
             dim(b.old) <- dim(b.new) <- c(1, ncz)
-        codaFit <- do.call("rbind", object$codaFit)
-        if (M > nrow(codaFit)) {
-            warning("'M' cannot be set greater than ", nrow(codaFit))
-            M <- nrow(codaFit)
+        mcmc <- object$mcmc
+        mcmc <- mcmc[names(mcmc) != "b"]
+        if (M > nrow(mcmc$betas)) {
+            warning("'M' cannot be set greater than ", nrow(mcmc$betas))
+            M <- nrow(mcmc$betas)
             out <- vector("list", M)
             success.rate <- matrix(FALSE, M, n.tp)
         }
-        codaFit <- codaFit[sample(nrow(codaFit), M), , drop = FALSE]
-        codaFit <- cbind(codaFit, "sigma" = 1 / codaFit[, "tau"])
-        ind.thetas <- sapply(names(list.thetas), grep, x = colnames(codaFit), fixed = TRUE)
-        if (!is.null(ind.thetas$Bs.gammas) && !is.null(object$coefficients$gammas))
-            ind.thetas$gammas <- setdiff(ind.thetas$gammas, ind.thetas$Bs.gammas)
-        if (param %in% c("td-extra", "td-both"))
-            ind.thetas$D <- setdiff(ind.thetas$D, ind.thetas$Dalpha)
-        if (param == "td-both")
-            ind.thetas$alpha <- setdiff(ind.thetas$alpha, ind.thetas$Dalpha)
-        if (param == "td-extra")
-            ind.thetas$alpha <- NULL
-        if (param %in% c("td-value", "shared-RE"))
-            ind.thetas$Dalpha <- NULL
-        if (survMod == "weibull-PH") {
-            ind.thetas$sigma <- setdiff(ind.thetas$sigma, ind.thetas$sigma.t)
-            ind.thetas$Bs.gammas <- NULL
-        }
+        samples <- sample(nrow(mcmc$betas), M)
+        mcmc[] <- lapply(mcmc, function (x) x[samples, , drop = FALSE])
+        proposed.b <- mapply(rmvt, mu = split(modes.b, row(modes.b)), Sigma = Vars.b, 
+                             MoreArgs = list(n = M, df = 4), SIMPLIFY = FALSE)
+        dmvt.proposed <- mapply(dmvt, x = proposed.b, mu = split(modes.b, row(modes.b)),
+                                Sigma = Vars.b, MoreArgs = list(df = 4, log = TRUE), SIMPLIFY = FALSE)
         for (m in 1:M) {
             # Step 1: extract parameter values
-            thetas.new <- lapply(ind.thetas, function (k) codaFit[m, k])
-            thetas.new$D <- solve(matrix(thetas.new$D, ncz, ncz, TRUE))
-            betas.new <- thetas.new$betas
-            sigma.new <- thetas.new$sigma
-            gammas.new <- thetas.new$gammas
-            alpha.new <- thetas.new$alpha
-            Dalpha.new <- thetas.new$Dalpha
-            D.new <- thetas.new$D
-            sigma.t.new <- thetas.new$sigma.t
-            Bs.gammas.new <- thetas.new$Bs.gammas
+            betas.new <- mcmc$betas[m, ]
+            if (hasScale)
+                sigma.new <- mcmc$sigma[m, ]
+            if (!is.null(W))
+                gammas.new <- mcmc$gammas[m, ]
+            if (param %in% c("td-value", "td-both", "shared-betasRE", "shared-RE")) 
+                alphas.new <- mcmc$alpha[m, ]
+            if (param %in% c("td-extra", "td-both"))
+                Dalphas.new <- mcmc$Dalphas[m, ]
+            D.new <- mcmc$D[m, ]; dim(D.new) <- dim(D)
+            Bs.gammas.new <- mcmc$Bs.gammas[m, ]
             SS <- vector("list", n.tp)
             for (i in seq_len(n.tp)) {
                 # Step 2: simulate new random effects values
-                proposed.b <- rmvt(1, modes.b[i, ], Vars.b[[i]], 4)
-                dmvt.old <- dmvt(b.old[i, ], modes.b[i, ], Vars.b[[i]], 4, TRUE)
-                dmvt.proposed <- dmvt(proposed.b, modes.b[i, ], Vars.b[[i]], 4, TRUE)
-                a <- min(exp(log.posterior.b(proposed.b, y, survMats.last, survMod, ii = i) + dmvt.old - 
-                        log.posterior.b(b.old[i, ], y, survMats.last, survMod, ii = i) - dmvt.proposed), 1)
+                p.b <- proposed.b[[i]][m, ]
+                dmvt.old <- dmvt(b.old[i, ], modes.b[i, ], invSigma = invVars.b[[i]], df = 4, log = TRUE)
+                dmvt.prop <- dmvt.proposed[[i]][m]
+                a <- min(exp(log.posterior.b(p.b, y, survMats.last, ii = i) + dmvt.old - 
+                        log.posterior.b(b.old[i, ], y, survMats.last, ii = i) - dmvt.prop), 1)
                 ind <- runif(1) <= a
                 success.rate[m, i] <- ind
                 if (!is.na(ind) && ind)
-                    b.new[i, ] <- proposed.b
+                    b.new[i, ] <- p.b
                 # Step 3: compute Pr(T > t_k | T > t_{k - 1}; theta.new, b.new)
                 S.last <- S.b(last.time[i], b.new[i, ], i, survMats.last[[i]])
                 S.pred <- numeric(length(times.to.pred[[i]]))

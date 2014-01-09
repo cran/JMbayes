@@ -1,5 +1,5 @@
 prederrJM.JMbayes <-
-function (object, newdata, Tstart, Thoriz, lossFun = c("absolute", "square"), 
+function (object, newdata, Tstart, Thoriz, lossFun = c("square", "absolute"), 
                                interval = FALSE, idVar = "id", simulate = FALSE, M = 100, ...) {
     if (!inherits(object, "JMbayes"))
         stop("Use only with 'JMbayes' objects.\n")
@@ -16,7 +16,7 @@ function (object, newdata, Tstart, Thoriz, lossFun = c("absolute", "square"),
     }
     id <- newdata[[idVar]]
     id <- match(id, unique(id))
-    TermsT <- object$termsT
+    TermsT <- object$Terms$termsT
     SurvT <- model.response(model.frame(TermsT, newdata)) 
     Time <- SurvT[, 1]
     timeVar <- object$timeVar
@@ -24,11 +24,12 @@ function (object, newdata, Tstart, Thoriz, lossFun = c("absolute", "square"),
     SurvT <- model.response(model.frame(TermsT, newdata2)) 
     Time <- SurvT[, 1]
     delta <- SurvT[, 2]
-    aliveThoriz <- newdata2[Time > Thoriz & newdata2[[timeVar]] <= Tstart, ]
-    deadThoriz <- newdata2[Time <= Thoriz & delta == 1 & newdata2[[timeVar]] <= Tstart, ]
-    indCens <- Time < Thoriz & delta == 0 & newdata2[[timeVar]] <= Tstart
+    timesInd <- newdata2[[timeVar]] <= Tstart
+    aliveThoriz <- newdata2[Time > Thoriz & timesInd, ]
+    deadThoriz <- newdata2[Time <= Thoriz & delta == 1 & timesInd, ]
+    indCens <- Time < Thoriz & delta == 0 & timesInd
     censThoriz <- newdata2[indCens, ]
-    nr <- length(unique(newdata2[[idVar]])) 
+    nr <- length(unique(newdata2[[idVar]]))
     idalive <- unique(aliveThoriz[[idVar]])
     iddead <- unique(deadThoriz[[idVar]])
     idcens <- unique(censThoriz[[idVar]])
@@ -51,9 +52,10 @@ function (object, newdata, Tstart, Thoriz, lossFun = c("absolute", "square"),
     }
     prederr <- if (!interval) {
         (1/nr) * sum(lossFun(1 - Surv.aliveThoriz), lossFun(0 - Surv.deadThoriz),
-                     weights * lossFun(1 - Surv.censThoriz) + (1 - weights) * lossFun(0 - Surv.censThoriz))
+                     weights * lossFun(1 - Surv.censThoriz) + (1 - weights) * lossFun(0 - Surv.censThoriz), 
+                     na.rm = TRUE)
     } else {
-        TimeCens <- exp(object$y$logT)
+        TimeCens <- object$y$Time
         deltaCens <- 1 - object$y$event
         KMcens <- survfit(Surv(TimeCens, deltaCens) ~ 1)
         times <- TimeCens[TimeCens > Tstart & TimeCens < Thoriz & !deltaCens]

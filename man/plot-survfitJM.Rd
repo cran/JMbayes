@@ -10,7 +10,7 @@
 
 \usage{
 \method{plot}{survfit.JMbayes}(x, estimator = c("both", "mean", "median"), 
-    which = NULL, fun = NULL, conf.int = FALSE, 
+    which = NULL, fun = NULL, invlink = NULL, conf.int = FALSE, 
     fill.area = FALSE, col.area = "grey", col.abline = "black", col.points = "black",
     add.last.time.axis.tick = FALSE, include.y = FALSE, main = NULL, 
     xlab = NULL, ylab = NULL, ylab2 = NULL, lty = NULL, col = NULL, 
@@ -27,6 +27,7 @@
     should contain a subset of the values of the \code{idVar} variable of the \code{newdata} argument of \code{\link{survfitJM}}.}
   \item{fun}{a vectorized function defining a transformation of the survival curve. For example with \code{fun=log} the log-survival curve 
     is drawn.}
+  \item{invlink}{a function to transform the fitted values of the longitudinal outcome.}
   \item{conf.int}{logical; if \code{TRUE}, then a pointwise confidence interval is included in the plot.}
   \item{fill.area}{logical; if \code{TRUE} the area defined by the confidence interval of the survival function is put in color.}
   \item{col.area}{the color of the area defined by the confidence interval of the survival function.}
@@ -72,10 +73,10 @@ pbc2.id$status2 <- as.numeric(pbc2.id$status != "alive")
 # we fit the joint model using splines for the subject-specific 
 # longitudinal trajectories and a spline-approximated baseline
 # risk function
-lmeFit <- lme(log(serBilir) ~ ns(year, 3),
-    random = list(id = pdDiag(form = ~ ns(year, 3))), data = pbc2)
+lmeFit <- lme(log(serBilir) ~ ns(year, 2), data = pbc2,
+    random = ~ ns(year, 2) | id)
 survFit <- coxph(Surv(years, status2) ~ drug, data = pbc2.id, x = TRUE)
-jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year", survMod = "spline-PH")
+jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year")
 
 # we will compute survival probabilities for Subject 2 in a dynamic manner, 
 # i.e., after each longitudinal measurement is recorded

@@ -14,7 +14,7 @@
 prederrJM(object, newdata, Tstart, Thoriz, \dots)
 
 \method{prederrJM}{JMbayes}(object, newdata, Tstart, Thoriz, 
-    lossFun = c("absolute", "square"), interval = FALSE, idVar = "id", 
+    lossFun = c("square", "absolute"), interval = FALSE, idVar = "id", 
     simulate = FALSE, M = 100, \dots)
 }
 
@@ -27,7 +27,8 @@ prederrJM(object, newdata, Tstart, Thoriz, \dots)
     that identifies the different subjects (see also argument \code{idVar}).}
   \item{Tstart}{numeric scalar denoting the time point up to which longitudinal information is to be used to derive predictions.}
   \item{Thoriz}{numeric scalar denoting the time point for which a prediction of the survival status is of interest; \code{Thoriz} mast be later than \code{Tstart}.}
-  \item{lossFun}{either the options \code{"absolute"} (default) or \code{"square"},  or a user-specified loss function. As the names suggest, 
+  \item{lossFun}{either the options \code{"absolute"} or \code{"square"} (default),  or a user-specified loss function. 
+    As the names suggest, 
     when \code{lossFun = "absolute"} the loss function is \eqn{L(x) = |x|}, whereas when \code{lossFun = "square"} the loss function is 
     \eqn{L(x) = x^2}. If a user-specified function is supplied, this should have a single argument and be vectorized.}
   \item{interval}{logical; if \code{TRUE} the weighted prediction error in the interval \code{[Tstart, Thoriz]} is calculated, while
@@ -99,11 +100,10 @@ pbc2.id$status2 <- as.numeric(pbc2.id$status != "alive")
 # we fit the joint model using splines for the subject-specific 
 # longitudinal trajectories and a spline-approximated baseline
 # risk function
-lmeFit <- lme(log(serBilir) ~ ns(year, 3),
-    random = list(id = pdDiag(form = ~ ns(year, 3))), data = pbc2)
+lmeFit <- lme(log(serBilir) ~ ns(year, 2), data = pbc2,
+    random = ~ ns(year, 2) | id)
 survFit <- coxph(Surv(years, status2) ~ drug, data = pbc2.id, x = TRUE)
-jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year", 
-    survMod = "spline-PH")
+jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year")
 
 # prediction error at year 10 using longitudinal data up to year 5 
 prederrJM(jointFit, pbc2, Tstart = 5, Thoriz = 10)

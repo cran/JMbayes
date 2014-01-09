@@ -2,9 +2,9 @@ print.JMbayes <-
 function (x, digits = max(4, getOption("digits") - 4), ...) {
     if (!inherits(x, "JMbayes"))
         stop("Use only with 'JMbayes' objects.\n")
-    cat("\nCall:\n", paste(deparse(x$call), sep = "\n", collapse = "\n"), "\n\n", sep = "")
+    cat("\nCall:\n", printCall(x$call), "\n\n", sep = "")
     cat("Variance Components:\n")
-    D <- x$coefficients$D
+    D <- x$postMeans$D
     ncz <- nrow(D)
     diag.D <- ncz != ncol(D)
     sds <- if (diag.D) sqrt(D) else sqrt(diag(D))
@@ -26,21 +26,18 @@ function (x, digits = max(4, getOption("digits") - 4), ...) {
         }
     } else {
         dat <- data.frame("StdDev" = sds, row.names = rownames(D), 
-            check.rows = FALSE, check.names = FALSE)
+                          check.rows = FALSE, check.names = FALSE)
     }
-    lis <- list("Random-Effects" = dat, "Residual" = c("Longitudinal" = x$coefficients$sigma, 
-        "Event" = x$coefficients$sigma.t))
+    lis <- list("Random-Effects" = dat, "Residual Std. Err." = x$postMeans$sigma)
     print(lapply(lis, function (x) if (!is.numeric(x)) x else round(x, digits = digits)))
     cat("\nCoefficients:\n")
-    gammas <- c(x$coefficients$gammas, "Assoct" = as.vector(x$coefficients$alpha), 
-        "Assoct.s" = as.vector(x$coefficients$Dalpha), x$coefficients$xi, 
-        x$coefficients$Bs.gammas)
+    gammas <- c(x$postMeans$gammas, x$postMeans$alphas, x$postMeans$Dalphas, x$postMeans$shapes, x$postMeans$Bs.gammas)
     if ((lag <- x$y$lag) > 0) {
         kk <- grep("Assoct", names(gammas), fixed = TRUE)
         names(gammas)[kk] <- paste(names(gammas)[kk], "(lag=", lag, ")", sep = "")
     }
-    print(lapply(list("Longitudinal Process" = x$coefficients$betas, "Event Process" = gammas), 
-        round, digits = digits))
+    print(lapply(list("Longitudinal Process" = x$postMeans$betas, "Event Process" = gammas), 
+                 round, digits = digits))
     if (!is.null(x$DIC))
         cat("\nDIC:", x$DIC)
     cat("\n\n")
