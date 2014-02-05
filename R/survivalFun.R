@@ -19,8 +19,9 @@ function (object, times, id = NULL, CI = FALSE, nullY = FALSE, nullCovs = FALSE)
         id <- seq_len(n)
     if (length(times) == 1)
         times <- rep(times, length.out = n)
-    wk <- gaussKronrod()$wk
-    sk <- gaussKronrod()$sk
+    GQsurv <- if (object$control$GQsurv == "GaussKronrod") gaussKronrod() else gaussLegendre(object$control$GQsurv.k)
+    wk <- GQsurv$wk
+    sk <- GQsurv$sk
     K <- length(sk)
     P <- times/2
     st <- outer(P, sk + 1)

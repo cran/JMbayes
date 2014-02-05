@@ -1,8 +1,8 @@
 Package: JMbayes
 Title: Joint Modeling of Longitudinal and Time-to-Event Data under a
         Bayesian Approach
-Version: 0.5-0
-Date: 2014-01-09
+Version: 0.5-1
+Date: 2014-02-05
 Author: Dimitris Rizopoulos <d.rizopoulos@erasmusmc.nl>
 Maintainer: Dimitris Rizopoulos <d.rizopoulos@erasmusmc.nl>
 Description: Shared parameter models for the joint modeling of longitudinal and time-to-event data using MCMC. 
@@ -11,7 +11,7 @@ Enhances: xtable
 LazyLoad: yes
 LazyData: yes
 License: GPL (>= 2)
-Packaged: 2014-01-09 11:38:37 UTC; drizopoulos
+Packaged: 2014-02-05 08:51:17 UTC; drizopoulos
 NeedsCompilation: no
 Repository: CRAN
-Date/Publication: 2014-01-09 13:01:46
+Date/Publication: 2014-02-05 10:14:22

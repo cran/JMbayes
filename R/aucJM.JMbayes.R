@@ -41,9 +41,18 @@ function (object, newdata, Tstart, Thoriz = NULL, Dt = NULL, idVar = "id",
         pi.u.t.i <- pi.u.t[pairs[1, ]]
         pi.u.t.j <- pi.u.t[pairs[2, ]]
         ind1 <- (Ti <= Thoriz & di == 1) & Tj > Thoriz
-        ind2 <- (Ti < Thoriz & di == 1) & (Tj == Thoriz & dj == 0)
-        ind <- ind1 | ind2
-        sum((pi.u.t.i < pi.u.t.j) & ind, na.rm = TRUE) / sum(ind, na.rm = TRUE)
+        ind2 <- (Ti <  Thoriz & di == 1) & (Tj == Thoriz & dj == 0)
+        ind3 <- (Ti <= Thoriz & di == 0) & Tj > Thoriz
+        ind <- ind1 | ind2 | ind3
+        if (any(ind3)) {
+            nams <- unique(names(ind3[ind3]))
+            pi2 <- survfitJM(object, newdata = newdata2[id %in% nams, ], idVar = idVar, 
+                             last.time = Time[nams], survTimes = Thoriz, simulate = simulate, M = M)
+            pi2 <- 1 - sapply(pi2$summaries, "[", 1, 2)
+            nams2 <- names(ind3[ind3])
+            ind[ind3] <- ind[ind3] * pi2[nams2]
+        }
+        sum((pi.u.t.i < pi.u.t.j) * ind, na.rm = TRUE) / sum(ind, na.rm = TRUE)
     } else {
         NA
     }

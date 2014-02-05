@@ -1,8 +1,8 @@
 plot.JMbayes <-
-function (x, which = c("trace", "autocorr", "CPO"), 
+function (x, which = c("trace", "autocorr", "CPO", "weightFun"), 
                           param = c("betas", "sigma", "D", "gammas", "alphas", "Dalphas", 
                                     "shapes", "Bs.gammas", "tauBs"), 
-                          ask = TRUE, ...) {
+                          ask = TRUE, max.t = NULL, from = 0, ...) {
     if (!inherits(x, "JMbayes"))
         stop("Use only with 'JMbayes' objects.\n")
     which <- match.arg(which)
@@ -23,10 +23,20 @@ function (x, which = c("trace", "autocorr", "CPO"),
                 acf(pp[, i], ylab = nams[i], main = paste("Series", nams[i]))
         }
         par(op)        
-    } else {
+    } else if (which == "CPO") {
         n <- length(x$CPO)
         matplot(matrix(1:n, 2, n, TRUE), rbind(rep(0, n), x$CPO), type = "l",
                 xlab = "Subjects", ylab = "CPO", main = deparse(substitute(x)), ...)
+    } else {
+        if (!x$estimateWeightFun)
+            stop("\nweight function has not been estimated.")
+        weightFun <- x$Funs$weightFun
+        if (is.null(max.t))
+            max.t <- quantile(x$y$Time, 0.75)
+        xx <- x
+        curve(weightFun(x, max.t, xx$postMeans$shapes), from = from, to = max.t, 
+              xlab = "Time", ylab = "weights", 
+              main = paste0("Estimated Weight Function in (0, ", round(max.t, 1), ")"), ...)
     }
     invisible()
 }

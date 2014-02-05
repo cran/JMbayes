@@ -1,3 +1,9 @@
+Changes in version: JMbayes_0.5-1
+
+  * A shiny web application has been added in the demo folder.
+
+---------------------------------------
+
 Changes in version: JMbayes_0.5-0
 
   * The MCMC is now implemented with efficient custom-made code and no longer relies on JAGS, WinBUGS or OpenBUGS.

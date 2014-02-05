@@ -1,7 +1,7 @@
 slice.tau <-
-function (logPost, current.tau, current.logPost, step) {
-    logy <- current.logPost - rexp(1)
-    tt <- runif(1, 0, step)
+function (logPost, current.tau, step) {
+    logy <- logPost(current.tau) - rexp(1L)
+    tt <- runif(1L, 0, step)
     L <- current.tau - tt
     R <- current.tau + step - tt
     while (L > 0 && logPost(L) > logy) {
@@ -12,7 +12,7 @@ function (logPost, current.tau, current.logPost, step) {
     }
     L <- max(0, L)
     repeat {
-        new.tau <- runif(1, L, R)
+        new.tau <- runif(1L, L, R)
         new.logPost <- logPost(new.tau)
         if (new.logPost >= logy)
             break

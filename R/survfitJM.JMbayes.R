@@ -10,7 +10,7 @@ function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL,
         stop("'idVar' not in 'newdata.\n'")
     if (is.null(survTimes) || !is.numeric(survTimes))
         survTimes <- seq(min(object$y$Time), 
-            max(object$y$Time) + 0.1, length.out = 35)
+            quantile(object$y$Time, 0.90, names = FALSE) + 0.01, length.out = 35)
     timeVar <- object$timeVar
     df.RE <- object$y$df.RE
     param <- object$param

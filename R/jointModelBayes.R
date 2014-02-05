@@ -32,8 +32,6 @@ function (lmeObject, survObject, timeVar,
         stop("\nthe 'extraForm' argument must be a list with components 'fixed' (a formula),\n\t'indFixed'",
              "(a numeric vector), 'random' (a formula) and 'indRandom' (a numeric vector).")
     }
-    if (estimateWeightFun && param != "td-value")
-        stop("\nto estimate the weight function you can only set param = 'td-value'.")
     # extract response & design matrix survival process
     formT <- formula(survObject)
     W <- survObject$x
@@ -75,7 +73,7 @@ function (lmeObject, survObject, timeVar,
     if (param == "shared-betasRE") {
         if (!all( colnames(Z) %in% colnames(X))) {
             warning("\nit seems that the random effects design matrix is not a subset of the ",
-                    "fixed effects design matrix. Argument 'param' is set to 'shared-RE'")
+                    "fixed effects design matrix. Argument 'param' is set to 'shared-RE'.")
             param <- "shared-RE"
         } else {
             indBetas <- match(colnames(Z), colnames(X))
@@ -96,12 +94,12 @@ function (lmeObject, survObject, timeVar,
     densRE <- if (is.null(df.RE)) {
         function (b, D = NULL, invD = NULL, log = FALSE, prop = TRUE) {
             nn <- if (is.matrix(b)) ncol(b) else length(b)
-            dmvnorm(b, mu = rep(0, nn), Sigma = D, invSigma = invD, log = log, prop = prop)
+            dmvnorm(b, mu = numeric(nn), Sigma = D, invSigma = invD, log = log, prop = prop)
         }
     } else {
         ddRE <- function (b, D = NULL, invD = NULL, log = FALSE, df, prop = TRUE) {
             nn <- if (is.matrix(b)) ncol(b) else length(b)
-            dmvt(b, mu = rep(0, nn), Sigma = D, invSigma = invD, df = df, log = log, prop = prop)
+            dmvt(b, mu = numeric(nn), Sigma = D, invSigma = invD, df = df, log = log, prop = prop)
         }
         formals(ddRE)$"df" <- df.RE
         ddRE
@@ -165,7 +163,9 @@ function (lmeObject, survObject, timeVar,
     con <- list(adapt = FALSE, n.iter = 20000, n.burnin = 3000, n.thin = 10, n.adapt = 3000, keepRE = TRUE,
                 n.batch = 100, priorVar = 100, knots = NULL, ObsTimes.knots = TRUE, 
                 lng.in.kn = if (baseHaz == "P-splines") 15 else 5, ordSpline = 4, 
-                seed = 1, diff = 2, weightFun = "beta", verbose = TRUE)
+                seed = 1, diff = 2, 
+                GQsurv = if (!estimateWeightFun) "GaussKronrod" else "GaussLegendre", 
+                GQsurv.k = if (!estimateWeightFun) 15 else 17, verbose = TRUE)
     control <- c(control, list(...))
     namC <- names(con)
     con[(namc <- names(control))] <- control
@@ -215,8 +215,9 @@ function (lmeObject, survObject, timeVar,
                                       Xtime.extra = Xtime.extra, Ztime.extra = Ztime.extra)),
                 "shared-betasRE" =, "shared-RE" =  x)
     # construct desing matrices for longitudinal part for the survival function
-    wk <- gaussKronrod()$wk
-    sk <- gaussKronrod()$sk
+    GQsurv <- if (con$GQsurv == "GaussKronrod") gaussKronrod() else gaussLegendre(con$GQsurv.k)
+    wk <- GQsurv$wk
+    sk <- GQsurv$sk
     K <- length(sk)
     P <- Time / 2
     st <- outer(P, sk + 1)
@@ -232,8 +233,8 @@ function (lmeObject, survObject, timeVar,
         Zs <- model.matrix(formYz, mfZ)
         x <- c(x, list(Xs = Xs, Zs = Zs))
         if (estimateWeightFun) {
-            wk2 <- gaussKronrod(7)$wk
-            sk2 <- gaussKronrod(7)$sk
+            wk2 <- GQsurv$wk
+            sk2 <- GQsurv$sk
             K2 <- length(sk2)
             P2 <- c(t(st)) / 2
             st2 <- outer(P2, sk2 + 1)
@@ -246,14 +247,8 @@ function (lmeObject, survObject, timeVar,
             Zu <- model.matrix(formYz, mfZ)
             x <- c(x, list(Xu = Xu, Zu = Zu, P2 = P2, st2 = st2, wk2 = wk2))
             y <- c(y, list(id.GK2 = id.GK2))
-            if (con$weightFun == "normal") {
-                weightFun <- function (s, t, parms) {
-                    dnorm(x = t - s, mean = parms[1], sd = parms[2]) / (pnorm(q = t, mean = parms[1], sd = parms[2]) - 0.5)
-                }
-            } else {
-                weightFun <- function (s, t, parms) {
-                    dgbeta(x = s, shape1 = parms[1], shape2 = parms[2], d = t)
-                }
+            weightFun <- function (s, t, parms) {
+                dgbeta(x = s, shape1 = parms[1], shape2 = parms[2], d = t)
             }
             Funs <- c(Funs, list(weightFun = weightFun))
         }
@@ -320,7 +315,7 @@ function (lmeObject, survObject, timeVar,
     initial.values$alphas <- initSurv$alphas
     initial.values$Dalphas <- initSurv$Dalphas
     if (estimateWeightFun) {
-        initial.values$shapes <- if (con$weightFun == "normal") c(0.5, 2) else c(1, 1)
+        initial.values$shapes <- c(1, 1)
         initial.values$alphas <- 1
     }
     initial.values <- initial.values[!sapply(initial.values, is.null)]
@@ -362,8 +357,8 @@ function (lmeObject, survObject, timeVar,
         prs$priorTau.Dalphas <- drop(diag(10 / con$priorVar, length(initial.values$Dalphas)))
     }
     if (estimateWeightFun) {
-        prs$priorshape1 <- c(0, 10)
-        prs$priorshape2 <- c(0, 10)
+        prs$priorshape1 <- c(0, 9)
+        prs$priorshape2 <- c(0, 9)
     }
     if (!is.null(priors)) {
         lngths <- lapply(prs[(nam.init <- names(priors))], length)
@@ -396,7 +391,7 @@ function (lmeObject, survObject, timeVar,
     names.D <- colnames(getVarCov(lmeObject))
     names.gammas <- names(coef(survObject))
     names.Bs.gammas <- paste0("Bs.gammas", seq_along(model$postMeans$Bs.gammas))
-    names.alphas <- if (param %in% c("td-value", "td-both") && !estimateWeightFun) {
+    names.alphas <- if (param %in% c("td-value", "td-both")) {
         if ((na <- length(model$postMeans$alphas)) == 1) "Assoct" else {
             nm <- colnames(transFun.value(1, data.id))
             if (all(nm[-1] == "")) paste0("Assoct", seq_len(na)) else c("Assoct", paste0("Assoct:", nm[-1]))

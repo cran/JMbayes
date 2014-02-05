@@ -2,10 +2,12 @@ effectiveSize <-
 function (x) {
     # copied (and made a bit more efficient) from the coda package
     spectrum0.ar <- function (x) {
-        v0 <- numeric(ncol(x))
-        z <- 1:nrow(x)
-        res <- as.matrix(lm.fit(cbind(1, z), cbind(x, x))$residuals)
-        for (i in 1:ncol(x)) {
+        d <- dim(x)
+        nrx <- d[1L]
+        ncx <- d[2L]
+        v0 <- numeric(ncx)
+        res <- as.matrix(lm.fit(cbind(1, seq_len(nrx)), cbind(x, x))$residuals)
+        for (i in seq_len(ncx)) {
             if (identical(all.equal(sd(res[, i]), 0), TRUE)) {
                 v0[i] <- 0
             } else {

@@ -9,9 +9,10 @@
 }
 
 \usage{
-\method{plot}{JMbayes}(x, which = c("trace", "autocorr", "CPO"), 
+\method{plot}{JMbayes}(x, which = c("trace", "autocorr", "CPO", "weightFun"), 
     param = c("betas", "sigma", "D", "gammas", "alphas", "Dalphas", 
-        "shapes", "Bs.gammas", "tauBs"), ask = TRUE, \dots)
+        "shapes", "Bs.gammas", "tauBs"), ask = TRUE, max.t = NULL, 
+    from = 0, \dots)
 }
 
 \arguments{
@@ -19,6 +20,9 @@
   \item{which}{which types of plots to produce.}
   \item{param}{for which parameter to produce the MCMC diagnostic plots; default is for all parameters.}
   \item{ask}{logical, if \code{TRUE} the user is asked for input, before a new figure is drawn.}
+  \item{max.t}{numeric scalar; up to which time point to plot the weight function, default is up to the
+	third quantile of the observed event times.}
+  \item{from}{numeric scalar; from which time point to start plotting the weight function, default is zero.}
   \item{\dots}{additional arguments; currently none is used.}
 }
 

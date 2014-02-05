@@ -1,8 +1,9 @@
 ModelMats <-
 function (time, ii) {
     id.GK <- rep(ii, each = 15)
-    wk <- gaussKronrod()$wk
-    sk <- gaussKronrod()$sk
+    GQsurv <- if (object$control$GQsurv == "GaussKronrod") gaussKronrod() else gaussLegendre(object$control$GQsurv.k)
+    wk <- GQsurv$wk
+    sk <- GQsurv$sk
     P <- time / 2
     st <- P * (sk + 1)
     data.id2 <- data.id[id.GK, ]
