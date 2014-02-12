@@ -14,7 +14,7 @@ jointModelBayes(lmeObject, survObject, timeVar,
     param = c("td-value", "td-extra", "td-both", "shared-betasRE", "shared-RE"), 
     extraForm = NULL, baseHaz = c("P-splines", "regression-splines"), 
     transFun = NULL, densLong = NULL, lag = 0, df.RE = NULL, 
-    estimateWeightFun = FALSE, init = NULL, 
+    estimateWeightFun = FALSE, weightFun = NULL, init = NULL, 
     priors = NULL, scales = NULL, control = list(), \dots)
 }
 
@@ -45,6 +45,7 @@ jointModelBayes(lmeObject, survObject, timeVar,
   \item{df.RE}{a numeric scalar denoting the number of degrees of freedom for the Student's-\eqn{t} random-effects distribution. If \code{NULL}
         the random effects are assumed to have a multivariate normal distribution.}
   \item{estimateWeightFun}{logical; experimental, not in use yet.}
+  \item{weightFun}{a weight function; experimental, not in use yet.}
   \item{init}{a named list of user-specified initial values:
     \describe{
         \item{betas}{the vector of fixed effects for the linear mixed effects model.}

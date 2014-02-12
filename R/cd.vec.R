@@ -9,7 +9,7 @@ function (x, f, ..., eps = .Machine$double.eps^0.25) {
         x2[i] <- x[i] - ex[i]
         diff.f <- c(f(x1, ...) - f(x2, ...))
         diff.x <- x1[i] - x2[i]
-        res[, i] <- diff.f/diff.x
+        res[, i] <- diff.f / diff.x
     }
     0.5 * (res + t(res))
 }

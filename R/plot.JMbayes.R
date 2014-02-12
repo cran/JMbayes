@@ -32,11 +32,11 @@ function (x, which = c("trace", "autocorr", "CPO", "weightFun"),
             stop("\nweight function has not been estimated.")
         weightFun <- x$Funs$weightFun
         if (is.null(max.t))
-            max.t <- quantile(x$y$Time, 0.75)
-        xx <- x
-        curve(weightFun(x, max.t, xx$postMeans$shapes), from = from, to = max.t, 
-              xlab = "Time", ylab = "weights", 
-              main = paste0("Estimated Weight Function in (0, ", round(max.t, 1), ")"), ...)
+            max.t <- quantile(x$y$Time, 0.25)
+        xx <- seq(1e-03, max.t, len = 101)
+        yy <- weightFun(xx, x$postMeans$shapes, max(x$y$Time))
+        plot(xx, yy, type = "l", xlab = "t - s", ylab = "weights", 
+             main = "Estimated Weight Function")
     }
     invisible()
 }

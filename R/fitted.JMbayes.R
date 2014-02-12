@@ -27,7 +27,8 @@ function (object, process = c("Longitudinal", "longitudinal", "Event", "event"),
         formYx <- reformulate(attr(delete.response(TermsX), "term.labels"))
         formYz <- Forms$formYz
         times <- Data$data[[timeVar]]
-        GQsurv <- if (object$control$GQsurv == "GaussKronrod") gaussKronrod() else gaussLegendre(object$control$GQsurv.k)
+        GQsurv <- if (object$control$GQsurv == "GaussKronrod") 
+            gaussKronrod() else gaussLegendre(object$control$GQsurv.k)
         wk <- GQsurv$wk
         sk <- GQsurv$sk
         K <- length(sk)

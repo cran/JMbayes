@@ -1,3 +1,9 @@
+Changes in version: JMbayes_0.5-2
+
+  * Updates for estimating the weight function.
+
+---------------------------------------
+
 Changes in version: JMbayes_0.5-1
 
   * A shiny web application has been added in the demo folder.

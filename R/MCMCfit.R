@@ -46,15 +46,17 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
     P <- dropAttr(x$P)
     st <- c(t(dropAttr(x$st)))
     if (estimateWeightFun) {
+        nshapes <- length(initials$shapes)
+        seq.nshapes <- seq_len(nshapes)
+        weightFun <- Funs$weightFun
         id.GK2 <- dropAttr(y$id.GK2)
-        w2 <- rep(dropAttr(x$wk2), ns)
+        id.GKu <- rep(id.GK, each = length(x$wk))
+        w2 <- rep(dropAttr(x$wk), ns)
         P2 <- dropAttr(x$P2)
         st2 <- c(t(dropAttr(x$st2)))
-        Time.idGK <- Time[id.GK]
-        st.idGK2 <- st[id.GK2]
-        id.GKu <- rep(id.GK, each = length(x$wk2))
-        weightFun <- Funs$weightFun
-        eps <- sqrt(.Machine$double.eps)
+        max.time <- max(Time)
+        u.idGK <- Time[id.GK] - st
+        u.idGK2 <- st[id.GK2] - st2
     }
     paramValue <- (param %in% c("td-value", "td-both")) && !estimateWeightFun
     paramExtra <- param %in% c("td-extra", "td-both")
@@ -133,15 +135,20 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
     log.prior.Dalphas <- function (Dalphas) {
         dmvnorm(Dalphas, priorMean.Dalphas, invSigma = priorTau.Dalphas, log = TRUE)
     }
-    priorshape1.low <- priors$priorshape1[1]
-    priorshape1.upp <- priors$priorshape1[2]
+    priorshape1.low <- priors$priorshape1[1L]
+    priorshape1.upp <- priors$priorshape1[2L]
     log.prior.shape1 <- function (shape1) {
         dunif(shape1, priorshape1.low, priorshape1.upp, log = TRUE)
     }
-    priorshape2.low <- priors$priorshape2[1]
-    priorshape2.upp <- priors$priorshape2[2]
+    priorshape2.low <- priors$priorshape2[1L]
+    priorshape2.upp <- priors$priorshape2[2L]
     log.prior.shape2 <- function (shape2) {
         dunif(shape2, priorshape2.low, priorshape2.upp, log = TRUE)
+    }
+    priorshape3.low <- priors$priorshape3[1L]
+    priorshape3.upp <- priors$priorshape3[2L]
+    log.prior.shape3 <- function (shape3) {
+        dunif(shape3, priorshape3.low, priorshape3.upp, log = TRUE)
     }
     # define posteriors
     logPost.betas <- function (betas){
@@ -414,15 +421,15 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
         log.prior <- log.prior.Dalphas(Dalphas)
         sum(log.ptb, na.rm = TRUE) + log.prior
     }
-    logPost.shape1 <- function (shape1) {
-        shapes[1L] <- shape1
+    logPost.shape <- function (shape, which) {
+        shapes[which] <- shape
         Ms <- numeric(ns)
         ###
-        wFun <- weightFun(st, Time.idGK, shapes)
+        wFun <- weightFun(u.idGK, shapes, max.time)
         vl <- transFun.value(P * fastSumID(w * wFun * XsbetasZsb, id.GK), data.id)
         Mtime <- if (is.matrix.vl) drop(vl %*% alphas) else vl * alphas
         ###
-        wFun2 <- weightFun(st2, st.idGK2, shapes)
+        wFun2 <- weightFun(u.idGK2, shapes, max.time)
         vls <- transFun.value(P2 * fastSumID(w2 * wFun2 * XubetasZub, id.GK2), data.s)
         Ms <- Ms + if (is.matrix.vls) drop(vls %*% alphas) else vls * alphas
         ###
@@ -434,31 +441,8 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
         if (notNullW)
             log.Surv <- expWgammas * log.Surv
         log.ptb <- event * Mtime - log.Surv
-        log.prior <- log.prior.shape1(shape1)
-        list(log.post = sum(log.ptb, na.rm = TRUE) + log.prior, log.Surv = log.Surv,
-             Ms = Ms, Int = Int, wFun = wFun, wFun2 = wFun2, vl = vl, vls = vls)
-    }
-    logPost.shape2 <- function (shape2) {
-        shapes[2L] <- shape2
-        Ms <- numeric(ns)
-        ###
-        wFun <- weightFun(st, Time.idGK, shapes)
-        vl <- transFun.value(P * fastSumID(w * wFun * XsbetasZsb, id.GK), data.id)
-        Mtime <- if (is.matrix.vl) drop(vl %*% alphas) else vl * alphas
-        ###
-        wFun2 <- weightFun(st2, st.idGK2, shapes)
-        vls <- transFun.value(P2 * fastSumID(w2 * wFun2 * XubetasZub, id.GK2), data.s)
-        Ms <- Ms + if (is.matrix.vls) drop(vls %*% alphas) else vls * alphas
-        ###
-        if (paramExtra) {
-            Ms <- Ms + if (is.matrix.exs) drop(exs %*% Dalphas) else exs * Dalphas
-        }
-        ###
-        log.Surv <- Int <- P * fastSumID(w * exp(log.h0s + Ms), id.GK)
-        if (notNullW)
-            log.Surv <- expWgammas * log.Surv
-        log.ptb <- event * Mtime - log.Surv
-        log.prior <- log.prior.shape2(shape2)
+        log.prior <- switch(which, "1" = log.prior.shape1(shape), 
+                            "2" = log.prior.shape2(shape), "3" = log.prior.shape3(shape))
         list(log.post = sum(log.ptb, na.rm = TRUE) + log.prior, log.Surv = log.Surv,
              Ms = Ms, Int = Int, wFun = wFun, wFun2 = wFun2, vl = vl, vls = vls)
     }
@@ -536,7 +520,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
     n.thin <- control$n.thin
     n.batch <- control$n.batch
     # objects to keep results
-    resInd <- seq(n.adapt + n.burnin + 1, totalIter, by = n.thin)
+    resInd <- seq(n.adapt + n.burnin + 1L, totalIter, by = n.thin)
     n.out <- length(resInd)
     res.betas <- matrix(0, n.out, length(betas))
     if (hasScale)
@@ -553,7 +537,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
     if (paramExtra)
         res.Dalphas <- matrix(0, n.out, length(Dalphas))
     if (estimateWeightFun)
-        res.shapes <- matrix(0, n.out, 2)
+        res.shapes <- matrix(0, n.out, length(shapes))
     res.logLik <- matrix(0, n.out, n)
     # acceptance rates
     ar.betas <- ar.invD <- ar.gammas <- ar.Bs.gammas <- ar.alphas <- ar.Dalphas <- numeric(totalIter)
@@ -587,10 +571,10 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
         Ms <- Ms + if (is.matrix.exs) drop(exs %*% Dalphas) else exs * Dalphas
     }
     if (estimateWeightFun) {
-        wFun <- weightFun(st, Time.idGK, shapes)
+        wFun <- weightFun(u.idGK, shapes, max.time)
         Xsbetas <- drop(Xs %*% betas)
         Zsb <- rowSums(Zs * b[id.GK, , drop = FALSE])
-        wFun2 <- weightFun(st2, st.idGK2, shapes)
+        wFun2 <- weightFun(u.idGK2, shapes, max.time)
         Xubetas <- drop(Xu %*% betas)
         Zub <- rowSums(Zu * b[id.GKu, , drop = FALSE])
         vl <- transFun.value(P * fastSumID(w * wFun * (Xsbetas + Zsb), id.GK), data.id)
@@ -616,17 +600,17 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
     #########################################################################################################
     # run the MCMC
     set.seed(control$seed)
-    batch <- 1
-    jj <- 0
+    batch <- 1L
+    jj <- 0L
     batchStart <- round((n.adapt + n.burnin) / n.batch)
     if (control$verbose) {
         cat("\n MCMC iterations:\n\n")
         pb <- txtProgressBar(0, totalIter, style = 3, char = "+", width = 50)
     }
     time <- system.time(for (i in seq_len(totalIter)) {
-        if (i == 1 || !i %% n.batch) {
+        if (i == 1L || !i %% n.batch) {
             if (i > 1 && i <= n.adapt) {
-                ss <- seq(1 + n.batch * (batch - 1), n.batch * batch)
+                ss <- seq(1L + n.batch * (batch - 1L), n.batch * batch)
                 if (is.null(scales[["betas"]]))
                     scale.betas <- scbetasF <- adjustScaleRW(scale.betas, mean(ar.betas[ss]), nbetas)
                 if (is.null(scales[["b"]]))
@@ -647,7 +631,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
                 }
             }
             if (i > 1)
-                batch <- batch + 1
+                batch <- batch + 1L
             new.betas <- r.betas(n.batch)
             new.b <- r.RE(n.batch)
             if (notNullW)
@@ -659,7 +643,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
                 new.Dalphas <- r.Dalphas(n.batch)
         }
         # batch index
-        ii <- i - n.batch * if (!i %% n.batch) i %/% n.batch - 1 else i %/% n.batch
+        ii <- i - n.batch * if (!i %% n.batch) i %/% n.batch - 1L else i %/% n.batch
         # update betas
         lP.old.betas <- logPost.betas2()
         new.betas[ii, ] <- new.betas[ii, ] + betas
@@ -820,37 +804,31 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
         # update shapes
         if (estimateWeightFun) {
             #cat("\ni =", i, "\tshape1 =", round(shapes[1], 3),
-            #    "\tshape2 =", round(shapes[2], 3), "\talphas =", round(alphas, 3),
-            #    "\tDalphas =", round(Dalphas, 3), "\tbetas = ", round(betas, 3))
+            #    "\tshape2 =", round(shapes[2], 3), "\tshape3 =", round(shapes[3], 3), 
+            #    "\talphas =", round(alphas, 3),
+            #    "\tbetas = ", round(betas, 3))
             XsbetasZsb <- Xsbetas + Zsb
             XubetasZub <- Xubetas + Zub
-            # update shape1
-            ss <- 1
-            slice.shape1 <- slice.shape(logPost.shape1, shapes[1L], step = ss)
-            while(slice.shape1$fail) {
-                ss <- ss/10
-                if (ss < 1e-05)
-                    break
-                slice.shape1 <- slice.shape(logPost.shape1, shapes[1L], step = ss)
+            for (shp in seq.nshapes) {
+                ss <- 1
+                slice.shape <- slice.shape(logPost.shape, shapes, step = ss, which = shp)
+                while(slice.shape$fail) {
+                    ss <- ss/10
+                    if (ss < 1e-05)
+                        break
+                    slice.shape <- slice.shape(logPost.shape, shapes, step = ss, which = shp)
+                }
+                shapes[shp] <- slice.shape$new.shape
+                if (shp == nshapes) {
+                    log.Surv <- slice.shape$log.Surv
+                    Ms <- slice.shape$Ms
+                    Int <- slice.shape$Int
+                    wFun <- slice.shape$wFun
+                    wFun2 <- slice.shape$wFun2
+                    vl <- slice.shape$vl
+                    vls <- slice.shape$vls                    
+                }
             }
-            shapes[1L] <- slice.shape1$new.shape
-            # update shape2
-            ss <- 1
-            slice.shape2 <- slice.shape(logPost.shape2, shapes[2L], step = ss)
-            while(slice.shape2$fail) {
-                ss <- ss/10
-                if (ss < 1e-05)
-                    break
-                slice.shape2 <- slice.shape(logPost.shape2, shapes[2L], step = ss)
-            }
-            shapes[2L] <- slice.shape2$new.shape
-            log.Surv <- slice.shape2$log.Surv
-            Ms <- slice.shape2$Ms
-            Int <- slice.shape2$Int
-            wFun <- slice.shape2$wFun
-            wFun2 <- slice.shape2$wFun2
-            vl <- slice.shape2$vl
-            vls <- slice.shape2$vls
         }
         if (control$verbose && !i %% n.batch)
             setTxtProgressBar(pb, i)
@@ -908,12 +886,12 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
                     Ms <- Ms + if (is.matrix.exs) drop(exs %*% Dalphas) else exs * Dalphas
                 }
                 if (estimateWeightFun) {
-                    wFun <- weightFun(st, Time.idGK, shapes)
+                    wFun <- weightFun(u.idGK, shapes, max.time)
                     Xsbetas <- drop(Xs %*% betas)
                     Zsb <- rowSums(Zs * b[id.GK, , drop = FALSE])
                     vl <- transFun.value(P * fastSumID(w * wFun * (Xsbetas + Zsb), id.GK), data.id)
                     Mtime <- Mtime + if (is.matrix.vl) drop(vl %*% alphas) else vl * alphas
-                    wFun2 <- weightFun(st2, st.idGK2, shapes)
+                    wFun2 <- weightFun(u.idGK2, shapes, max.time)
                     Xubetas <- drop(Xu %*% betas)
                     Zub <- rowSums(Zu * b[id.GKu, , drop = FALSE])
                     vls <- transFun.value(P2 * fastSumID(w2 * wFun2 * (Xubetas + Zub), id.GK2), data.s)
@@ -951,7 +929,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
     D.bar <- - 2 * mean(rowSums(res.logLik, na.rm = TRUE), na.rm = TRUE)
     postMeans <- lapply(mcmcOut, function (x) {
         d <- dim(x)
-        if (!is.null(d) && length(d) > 2) apply(x, c(1,2), mean) else colMeans(as.matrix(x))
+        if (!is.null(d) && length(d) > 2) apply(x, c(1, 2), mean) else colMeans(as.matrix(x))
     })
     dim(postMeans$D) <- c(ncZ, ncZ)
     betas <- postMeans$betas; sigma <- postMeans$sigma; b <- postMeans$b; D <- postMeans$D
@@ -963,7 +941,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
     if (!paramRE) {
         Mtime <- numeric(n)
         Ms <- numeric(ns)
-        if (estimateAlphas) {
+        if (paramValue) {
             vl <- transFun.value(drop(Xtime %*% betas) + rowSums(Ztime * b), data.id)
             vls <- transFun.value(drop(Xs %*% betas) + rowSums(Zs * b[id.GK, , drop = FALSE]), data.s)
             Mtime <- Mtime + if (is.matrix.vl) drop(vl %*% alphas) else vl * alphas
@@ -978,12 +956,12 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
             Ms <- Ms + if (is.matrix.exs) drop(exs %*% Dalphas) else exs * Dalphas
         }
         if (estimateWeightFun) {
-            wFun <- weightFun(st, Time.idGK, shapes)
+            wFun <- weightFun(u.idGK, shapes, max.time)
             Xsbetas <- drop(Xs %*% betas)
             Zsb <- rowSums(Zs * b[id.GK, , drop = FALSE])
             vl <- transFun.value(P * fastSumID(w * wFun * (Xsbetas + Zsb), id.GK), data.id)
             Mtime <- Mtime + if (is.matrix.vl) drop(vl %*% alphas) else vl * alphas
-            wFun2 <- weightFun(st2, st.idGK2, shapes)
+            wFun2 <- weightFun(u.idGK2, shapes, max.time)
             Xubetas <- drop(Xu %*% betas)
             Zub <- rowSums(Zu * b[id.GKu, , drop = FALSE])
             vls <- transFun.value(P2 * fastSumID(w2 * wFun2 * (Xubetas + Zub), id.GK2), data.s)
@@ -1009,7 +987,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
     postVarsRE <- apply(res.b, 1, function (x) var(t(x)))
     dim(postVarsRE)<- c(ncZ, ncZ, n)
     keepD <- length(betas) + 1 + which(!lower.tri(invD, TRUE))
-    keepAR <- - seq_len(n.adapt)
+    keepAR <- -seq_len(n.adapt)
     postModes <- lapply(mcmcOut[indb], function (x) apply(as.matrix(x), 2, modes))
     dim(postModes$D) <- c(ncZ, ncZ)
     list(mcmc = if (control$keepRE) mcmcOut else mcmcOut[indb], postMeans = postMeans,

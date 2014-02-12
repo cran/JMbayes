@@ -3,7 +3,7 @@ function (lmeObject, survObject, timeVar,
                              param = c("td-value", "td-extra", "td-both", "shared-betasRE", "shared-RE"),
                              extraForm = NULL, baseHaz = c("P-splines", "regression-splines"), 
                              transFun = NULL, densLong = NULL, lag = 0, df.RE = NULL,
-                             estimateWeightFun = FALSE, init = NULL, priors = NULL, scales = NULL, 
+                             estimateWeightFun = FALSE, weightFun = NULL, init = NULL, priors = NULL, scales = NULL, 
                              control = list(), ...) {
     cl <- match.call()
     param <- match.arg(param)
@@ -155,17 +155,18 @@ function (lmeObject, survObject, timeVar,
             stop("\nincorrect specification of 'transFun' arguments.")
     }
     # put functions in a list
-    hasScale <- inherits(try(densLong(y.long[1], lmeObject$fitted[1], , log = FALSE, data), silent = TRUE), 
-                         "try-error")
+    hasScale <- inherits(try(densLong(y.long[1L], lmeObject$fitted[1L], , log = FALSE, data), 
+                             silent = TRUE), "try-error")
     Funs <- list(transFun.value = transFun.value, transFun.extra = transFun.extra,
                  densRE = densRE, densLong = densLong, hasScale = hasScale)
     # control values
-    con <- list(adapt = FALSE, n.iter = 20000, n.burnin = 3000, n.thin = 10, n.adapt = 3000, keepRE = TRUE,
-                n.batch = 100, priorVar = 100, knots = NULL, ObsTimes.knots = TRUE, 
-                lng.in.kn = if (baseHaz == "P-splines") 15 else 5, ordSpline = 4, 
-                seed = 1, diff = 2, 
+    con <- list(adapt = FALSE, n.iter = 20000L, n.burnin = 3000L, n.thin = 10L, 
+                n.adapt = 3000L, keepRE = TRUE, n.batch = 100L, priorVar = 100, 
+                knots = NULL, ObsTimes.knots = TRUE, 
+                lng.in.kn = if (baseHaz == "P-splines") 15L else 5L, ordSpline = 4L, 
+                seed = 1L, diff = 2L, 
                 GQsurv = if (!estimateWeightFun) "GaussKronrod" else "GaussLegendre", 
-                GQsurv.k = if (!estimateWeightFun) 15 else 17, verbose = TRUE)
+                GQsurv.k = if (!estimateWeightFun) 15L else 17L, verbose = TRUE)
     control <- c(control, list(...))
     namC <- names(con)
     con[(namc <- names(control))] <- control
@@ -233,22 +234,23 @@ function (lmeObject, survObject, timeVar,
         Zs <- model.matrix(formYz, mfZ)
         x <- c(x, list(Xs = Xs, Zs = Zs))
         if (estimateWeightFun) {
-            wk2 <- GQsurv$wk
-            sk2 <- GQsurv$sk
-            K2 <- length(sk2)
             P2 <- c(t(st)) / 2
-            st2 <- outer(P2, sk2 + 1)
-            id.GK2 <- rep(seq_len(nrow(data.id2)), each = K2)
+            st2 <- outer(P2, sk + 1)
+            id.GK2 <- rep(seq_len(nrow(data.id2)), each = K)
             data.id3 <- data.id2[id.GK2, ]
             data.id3[[timeVar]] <- pmax(c(t(st2)) - lag, 0)
             mfX <- model.frame(TermsX, data = data.id3)
             mfZ <- model.frame(TermsZ, data = data.id3)
             Xu <- model.matrix(formYx, mfX)
             Zu <- model.matrix(formYz, mfZ)
-            x <- c(x, list(Xu = Xu, Zu = Zu, P2 = P2, st2 = st2, wk2 = wk2))
+            x <- c(x, list(Xu = Xu, Zu = Zu, P2 = P2, st2 = st2))
             y <- c(y, list(id.GK2 = id.GK2))
-            weightFun <- function (s, t, parms) {
-                dgbeta(x = s, shape1 = parms[1], shape2 = parms[2], d = t)
+            if (is.null(weightFun) || !is.function(weightFun)) {
+                weightFun <- function (u, parms, t.max) {
+                    num <- dnorm(x = u, mean = parms[1L], sd = parms[2L])
+                    den <- pnorm(q = t.max, mean = parms[1L], sd = parms[2L]) - 0.5
+                    num / den
+                }
             }
             Funs <- c(Funs, list(weightFun = weightFun))
         }
@@ -285,20 +287,25 @@ function (lmeObject, survObject, timeVar,
     W2s <- splineDesign(rr, c(t(st)), ord = con$ordSpline)
     x <- c(x, list(W2 = W2, W2s = W2s))
     # All data
-    Data <- list(data = data, data.id = data.id, data.s = data.id2, data.u = if (estimateWeightFun) data.id3)
+    Data <- list(data = data, data.id = data.id, data.s = data.id2, 
+                 data.u = if (estimateWeightFun) data.id3)
     # extract initial values
     D <- lapply(pdMatrix(lmeObject$modelStruct$reStruct), "*",
                  lmeObject$sigma^2)[[1]]
     sigma2 <- lmeObject$sigma^2
     initial.values <- list(betas = fixef(lmeObject), tau = 1/sigma2, b = b,
                            D = D, invD = invD)
-    initSurv <- initSurvival(Time, event, id, W2, W2s, P, wk, id.GK, times, b, initial.values$betas, y$indBetas, 
+    initSurv <- initSurvival(Time, event, id, W2, W2s, P, wk, id.GK, times, 
+                             b, initial.values$betas, y$indBetas, 
                              W, baseHaz, con$diff, Data, param, 
-                             if (param %in% c("td-value", "td-both")) long else NULL, long.extra, transFun.value, transFun.extra, 
+                             if (param %in% c("td-value", "td-both")) long else NULL, 
+                             long.extra, transFun.value, transFun.extra, 
                              vl = if (param %in% c("td-value", "td-both")) 
-                                 transFun.value(c(Xtime %*% fixef(lmeObject)) + rowSums(Ztime * b), Data$data.id),
+                                 transFun.value(c(Xtime %*% fixef(lmeObject)) + 
+                                                    rowSums(Ztime * b), Data$data.id),
                              vls = if (param %in% c("td-value", "td-both")) 
-                                 transFun.value(c(Xs %*% fixef(lmeObject)) + rowSums(Zs * b[id.GK, , drop = FALSE]), Data$data.s),
+                                 transFun.value(c(Xs %*% fixef(lmeObject)) + 
+                                                    rowSums(Zs * b[id.GK, , drop = FALSE]), Data$data.s),
                              ex = if (param %in% c("td-extra", "td-both")) {
                                  iF <- extraForm$indFixed; iR <- extraForm$indRandom
                                  transFun.extra(c(Xtime.extra %*% fixef(lmeObject)[iF]) + 
@@ -315,7 +322,20 @@ function (lmeObject, survObject, timeVar,
     initial.values$alphas <- initSurv$alphas
     initial.values$Dalphas <- initSurv$Dalphas
     if (estimateWeightFun) {
-        initial.values$shapes <- c(1, 1)
+        w1 <- try(weightFun(0.1, c(0.1), 1), TRUE)
+        w2 <- try(weightFun(0.1, c(0.1, 0.1), 1), TRUE)
+        w3 <- try(weightFun(0.1, c(0.1, 0.1, 0.1), 1), TRUE)
+        ind1 <- inherits(w1, "try-error") || is.na(w1)
+        ind2 <- inherits(w2, "try-error") || is.na(w2)
+        ind3 <- inherits(w3, "try-error") || is.na(w3)
+        nshapes <- if (ind1 && ind2) {
+            3
+        } else if (ind2 || (!ind1 && w1 == w2)) {
+            1
+        } else if (ind3 || (!ind2 && w2 == w3)) {
+            2
+        } else 3
+        initial.values$shapes <- rep(1, nshapes)
         initial.values$alphas <- 1
     }
     initial.values <- initial.values[!sapply(initial.values, is.null)]
@@ -333,11 +353,11 @@ function (lmeObject, survObject, timeVar,
         }
     }
     # default priors
-    prs <- list(priorMean.betas = rep(0, ncol(X)), 
+    prs <- list(priorMean.betas = numeric(ncol(X)), 
                 priorTau.betas = diag(1 / con$priorVar, ncol(X)),
                 priorA.tau = (1/sigma2)^2 / 10, priorB.tau = (1/sigma2) / 10,
                 priorR.invD = ncol(Z) * invD, priorK.invD = ncol(Z),
-                priorMean.Bs.gammas = rep(0, ncol(W2)), 
+                priorMean.Bs.gammas = numeric(ncol(W2)), 
                 priorTau.Bs.gammas = diag(10 / con$priorVar, ncol(W2)))
     if (baseHaz == "P-splines") {
         prs$priorTau.Bs.gammas <- crossprod(diff(diag(ncol(W2)), differences = con$diff))
@@ -357,16 +377,17 @@ function (lmeObject, survObject, timeVar,
         prs$priorTau.Dalphas <- drop(diag(10 / con$priorVar, length(initial.values$Dalphas)))
     }
     if (estimateWeightFun) {
-        prs$priorshape1 <- c(0, 9)
-        prs$priorshape2 <- c(0, 9)
+        prs$priorshape1 <- c(0, 10)
+        prs$priorshape2 <- c(0, 10)
+        prs$priorshape3 <- c(0, 10)
     }
     if (!is.null(priors)) {
-        lngths <- lapply(prs[(nam.init <- names(priors))], length)
+        lngths <- lapply(prs[(nam.prs <- names(priors))], length)
         if (!is.list(priors) || !isTRUE(all.equal(lngths, lapply(priors, length)))) {
             warning("'priors' is not a list with elements numeric vectors of appropriate ",
                     "length; default priors are used instead.\n")
         } else {
-            prs[nam.init] <- priors
+            prs[nam.prs] <- priors
         }
     }
     # covariance matrices of parameters from separate fits
@@ -405,18 +426,21 @@ function (lmeObject, survObject, timeVar,
             if (all(nm[-1] == "")) paste0("AssoctE", seq_len(nda)) else c("AssoctE", paste0("AssoctE:", nm[-1]))
         }
     }
-    model <- fixNames(model, names.betas, names.D, names.gammas, names.Bs.gammas, names.alphas, names.Dalphas, 
-                      names.shapes = if (estimateWeightFun) c("shape1", "shape2"),
+    model <- fixNames(model, names.betas, names.D, names.gammas, names.Bs.gammas, 
+                      names.alphas, names.Dalphas, 
+                      names.shapes = if (estimateWeightFun) 
+                          paste0("shape", seq_along(model$postMeans$shapes)),
                       names.id = row.names(ranef(lmeObject)))
-    out <- c(model, list(x = x, y = y, Data = Data, 
-                         Terms = list(termsYx = TermsX, termsYz = TermsZ, termsT = survObject$terms,
+    out <- c(model, list(x = x, y = y, Data = Data, Funs = Funs,
+                         Terms = list(termsYx = TermsX, termsYz = TermsZ, 
+                                      termsT = survObject$terms,
                                       termsYx.extra = if (param %in% c("td-extra", "td-both")) TermsX.extra, 
-                                      termsYz.extra = if (param %in% c("td-extra", "td-both")) TermsZ.extra), 
-                         Funs = Funs,
+                                      termsYz.extra = if (param %in% c("td-extra", "td-both")) TermsZ.extra),
                          Forms = list(formYx = formYx, formYz = formYz, 
                                       formT = formT, extraForm = extraForm),
                          timeVar = timeVar, control = con, densLongCheck = densLongCheck,
-                         param = param, priors = prs, baseHaz = baseHaz, df.RE = df.RE, estimateWeightFun = estimateWeightFun,
+                         param = param, priors = prs, baseHaz = baseHaz, df.RE = df.RE, 
+                         estimateWeightFun = estimateWeightFun,
                          call = cl))
     class(out) <- "JMbayes"
     out
