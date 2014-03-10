@@ -274,6 +274,20 @@ jointFit.pbc4 <- jointModelBayes(lmeFit.pbc2, survFit.pbc, timeVar = "year",
                                   densLong = censdLong)
 
 summary(jointFit.pbc4)
+
+# a joint model for a binary outcome
+pbc2$serBilirD <- 1 * (pbc2$serBilir > 1.8)
+lmeFit.pbc3 <- glmmPQL(serBilirD ~ year, random = ~ year | id, 
+	family = binomial, data = pbc2)
+
+dLongBin <- function (y, eta.y, scale, log = FALSE, data) {
+    dbinom(x = y, size = 1, prob = plogis(eta.y), log = log)
+}
+
+jointFit.pbc5 <- jointModelBayes(lmeFit.pbc3, survFit.pbc, timeVar = "year", 
+	densLong = dLongBin)
+
+summary(jointFit.pbc5)
 }
 }
 

@@ -1,12 +1,12 @@
 plot.JMbayes <-
-function (x, which = c("trace", "autocorr", "CPO", "weightFun"), 
+function (x, which = c("trace", "autocorr", "density", "CPO", "weightFun"), 
                           param = c("betas", "sigma", "D", "gammas", "alphas", "Dalphas", 
                                     "shapes", "Bs.gammas", "tauBs"), 
                           ask = TRUE, max.t = NULL, from = 0, ...) {
     if (!inherits(x, "JMbayes"))
         stop("Use only with 'JMbayes' objects.\n")
     which <- match.arg(which)
-    if (which %in% c("trace", "autocorr")) {
+    if (which %in% c("trace", "density", "autocorr")) {
         param <- match.arg(param, several.ok = TRUE)
         if (any(param == "D")) {
             keepD <- c(lower.tri(x$postMeans$D, TRUE))
@@ -18,6 +18,12 @@ function (x, which = c("trace", "autocorr", "CPO", "weightFun"),
         if (which == "trace") {   
             for (i in 1:ncol(pp))
                 plot(pp[, i], type = "l", xlab = "iterations", ylab = nams[i])
+        } else if (which == "density") {
+            for (i in 1:ncol(pp)) {
+                bw <- bw.SJ(pp[, i]) * 1.3
+                plot(density(pp[, i], bw = bw), xlab = nams[i], 
+                     main = paste("Density of", nams[i]))
+            }            
         } else {
             for (i in 1:ncol(pp))
                 acf(pp[, i], ylab = nams[i], main = paste("Series", nams[i]))

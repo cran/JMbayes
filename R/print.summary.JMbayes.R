@@ -72,7 +72,8 @@ function (x, digits = max(4, getOption("digits") - 4),
             colnames(mat) <- c(colnames(mat)[1], rep("", ncz - 1))
             dat <- data.frame(mat, check.rows = FALSE, check.names = FALSE)
             names(dat) <- c("StdDev", "Corr", if (ncz > 2) rep(" ", ncz - 2) else NULL)
-            row.names(dat) <- c(dimnames(D)[[1]], "Residual")
+            row.names(dat) <- if (!is.null(x$sigma)) 
+                c(dimnames(D)[[1]], "Residual") else c(dimnames(D)[[1]], " ")
         }
     } else {
         dat <- data.frame("StdDev" = c(sds, x$sigma), row.names = c(rownames(D), "Residual"),
@@ -88,10 +89,12 @@ function (x, digits = max(4, getOption("digits") - 4),
     out <- as.data.frame(round(x$"CoefTable-Event", digits))
     out$P <- format.pval2(out$P, digits = digits, eps = 1e-03)
     print(out)
-    cat("\nMCMC iteration summary:\n")
+    cat("\nMCMC summary:\n")
+    tt <- x$time["elapsed"]/60
     cat("iterations:", x$control$n.iter, "\nadapt:", x$control$n.adapt, 
         "\nburn-in:", x$control$n.burnin, "\nthinning:", x$control$n.thin,
-        "\ntime:", round(x$time["elapsed"]/60, 1), "min")
+        "\ntime:", if (tt > 60) round(tt/60, 1) else round(tt, 1), 
+        if (tt > 60) "hours" else "min")
     cat("\n")
     invisible(x)
 }

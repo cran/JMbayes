@@ -1,16 +1,50 @@
-shinyServer(function(input, output) {
-    loadObject <- reactive({
+shinyServer(function(input, output) {    
+    findJMbayesObjs <- reactive({
         inFile <- input$RDfile
         load(inFile$datapath)
         objs <- ls()
         ss <- sapply(objs, function (o) class(get(o))) == "JMbayes"
-        if (all(!ss))
-            stop("\nIt seems that there is no joint model fitted by JMbayes in the workspace that you loaded ...")
-        get(objs[ss][1])
+        if (all(!ss)) {
+            stop("\nIt seems that there is no joint model fitted by jointModelBayes() ", 
+                 "in the workspace that you loaded ...")
+        }
+        out <- objs[ss]
+        names(out) <- out
+        out
     })
     
-    dataObject <- reactive({
+    output$modelChoose <- renderUI({
         if (!is.null(input$RDfile)) {
+            inFile <- input$RDfile
+            load(inFile$datapath)
+            objs <- findJMbayesObjs()
+            selectInput("model", "Choose joint model:", objs, objs[1L])
+        }
+    })
+    
+    loadObject <- reactive({
+        if (!is.null(input$RDfile) && !is.null(input$model)) {
+            inFile <- input$RDfile
+            load(inFile$datapath)
+            objs <- findJMbayesObjs()
+            choice <- input$model
+            get(objs[input$model])
+        }
+    })
+    
+    #loadObject <- reactive({
+    #    inFile <- input$RDfile
+    #    load(inFile$datapath)
+    #    objs <- ls()
+    #    ss <- sapply(objs, function (o) class(get(o))) == "JMbayes"
+    #    if (all(!ss))
+    #        stop("\nIt seems that there is no joint model fitted by jointModelBayes() ", 
+    #             "in the workspace that you loaded ...")
+    #    get(objs[ss][1])
+    #})
+    
+    dataObject <- reactive({
+        if (!is.null(input$RDfile) && !is.null(input$model)) {
             object <- loadObject()
             forms <- object$Forms[c("formYx", "formYz", "formT")]
             forms$formT <- reformulate(attr(delete.response(object$Terms$termsT), "term.labels"))
@@ -22,7 +56,7 @@ shinyServer(function(input, output) {
     })
     
     ND <- reactive({
-        if (!is.null(input$RDfile)) {
+        if (!is.null(input$RDfile) && !is.null(input$model)) {
             if (is.null(input$patientFile)) {
                 dataObject()
             } else {
@@ -30,7 +64,8 @@ shinyServer(function(input, output) {
                 indF <- sapply(d, is.factor)
                 levelsF <- lapply(d[indF], levels) 
                 tt <- try(inData <- read.csv(input$patientFile$datapath, sep = input$sep, 
-                                             quote=input$quote, colClasses = sapply(d, class)), TRUE)
+                                             quote=input$quote, colClasses = sapply(d, class),
+                                             dec = input$dec), TRUE)
                 if (!inherits(tt, "try-error")) {
                     inData <- cbind(inData, id = rep(1, nrow(inData)))
                     f <- function (f, l) {levels(f) <- l; f}
@@ -52,6 +87,17 @@ shinyServer(function(input, output) {
         }
     })
     
+    output$lastTime <- renderUI({
+        if (!is.null(input$patientFile)) {
+            object <- loadObject()
+            nd <- ND()
+            times <- nd[[object$timeVar]]
+            if (!is.null(times))
+                numericInput("lasttime", "Last time point without event:", 
+                             round(max(times, na.rm = TRUE), 2))
+        }
+    })
+    
     output$message <- renderPrint({
         if (is.null(input$RDfile)) {
             cat("<br /><h3> <span style='color:black'> Welcome to the web interface",
@@ -61,7 +107,6 @@ shinyServer(function(input, output) {
                 "<br /><br /><h4>Load the R workspace containing the fitted joint model using the",
                 "menus on the left to continue ...</h4>")
         } else {
-            
             if (is.null(input$patientFile)) {
                 dataset <- ND()
                 classes <- sapply(dataset, class)
@@ -78,7 +123,8 @@ shinyServer(function(input, output) {
                 cat("<br /><br /><p>", paste(msg1, msg2, msg3, msg4, msg5, msg6), "</p>")
             } else {
                 d <- dataObject()
-                tt <- try(inData <- read.csv(input$patientFile$datapath, sep = input$sep, colClasses = sapply(d, class)), TRUE)
+                tt <- try(inData <- read.csv(input$patientFile$datapath, sep = input$sep, 
+                                             colClasses = sapply(d, class), dec = input$dec), TRUE)
                 if (inherits(tt, "try-error"))
                     cat("<br /><span style='color:red'>Something went wrong when loading the data of the new subject;</span>",
                         "<br>try tweaking the 'Separator' and 'Decimal' options on the left panel ...")
@@ -96,9 +142,14 @@ shinyServer(function(input, output) {
             object <- loadObject()
             nd <- ND()
             n <- nrow(nd)
+            lastTimeUser <- input$lasttime
+            lastTimeData <- max(nd[[object$timeVar]])
             sfits <- vector("list", n)
             for (i in 1:n) {
-                sfits[[i]] <- survfitJM(object, newdata = nd[1:i, ], M = input$M)
+                lt <- if (i == n && !is.na(lastTimeUser) && lastTimeUser > lastTimeData) 
+                    lastTimeUser else NULL
+                sfits[[i]] <- survfitJM(object, newdata = nd[1:i, ], M = input$M, 
+                                        last.time = lt)
             }
             sfits
         }
@@ -109,11 +160,19 @@ shinyServer(function(input, output) {
             object <- loadObject()
             nd <- ND()
             n <- nrow(nd)
+            lastTimeUser <- input$lasttime
             sfits <- vector("list", n)
             for (i in 1:n) {
-                if (input$time > max(nd[1:i, object$timeVar]))
+                lastTimeData <- max(nd[1:i, object$timeVar])
+                target.time <- if (input$extra) lastTimeData + input$time else input$time
+                lt <- if (i == n && !is.na(lastTimeUser) && lastTimeUser > lastTimeData) 
+                    lastTimeUser else NULL
+                if (i == n && !is.na(lastTimeUser) && lastTimeUser > lastTimeData && input$extra)
+                    target.time <- lastTimeUser + input$time
+                if (target.time > lastTimeData)
                     sfits[[i]] <- survfitJM(object, newdata = nd[1:i, ], 
-                                            survTimes = input$time, M = input$M)
+                                            survTimes = target.time, M = input$M,
+                                            last.time = lt)
             }
             sfits
         }
@@ -158,7 +217,6 @@ shinyServer(function(input, output) {
         }
     })
     
-    
     output$survprobs <- renderTable({
         sprobs()
     })
@@ -169,13 +227,28 @@ shinyServer(function(input, output) {
             nn <- if(is.na(input$obs)) length(sfits.) else input$obs
             plot(sfits.[[nn]], estimator = "mean", conf.int = TRUE, fill.area = TRUE, 
                  include.y = TRUE, lwd = 2, ask = FALSE, cex = 2, main = "")
+            if (input$extra) {
+                object <- loadObject()
+                nd <- ND()
+                nr <- nrow(nd)
+                lastTimeUser <- input$lasttime
+                lastTimeData <- max(nd[1:nn, object$timeVar])
+                target.time <- if (nn == nr && !is.na(lastTimeUser) && 
+                                       lastTimeUser > lastTimeData) {
+                    lastTimeUser + input$time
+                } else {
+                    lastTimeData + input$time
+                }
+                abline(v = target.time, lty = 2, col = 2, lwd = 2)
+            }
         }
     })
     
     output$downloadData <- downloadHandler(
         filename = function () { paste(input$dataset, '.csv', sep = '') },
         content = function (file) {
-            write.csv(sprobs(), file)
+            write.table(sprobs(), file, sep = input$sep, dec = input$dec,
+                        row.names = FALSE)
         }
     )
     

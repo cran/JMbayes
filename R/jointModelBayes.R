@@ -20,7 +20,7 @@ function (lmeObject, survObject, timeVar,
         stop("\n'survObject' must inherit from class coxph.")
     if (is.null(survObject$x))
         stop("\nuse argument 'x = TRUE' in coxph().")
-    if (length(timeVar) != 1 || !is.character(timeVar))
+    if (length(timeVar) != 1L || !is.character(timeVar))
         stop("\n'timeVar' must be a character string.")
     if (param %in% c("td-extra", "td-both") && is.null(extraForm)) {
         stop("\nwhen parameterization is 'td-extra' or 'td-both' you need to specify the 'extraForm' argument.")
@@ -40,9 +40,9 @@ function (lmeObject, survObject, timeVar,
     nT <- length(Time)
     if (!length(W))
         W <- NULL
-    event <- survObject$y[, 2]
+    event <- survObject$y[, 2L]
     # longitudinal process
-    idOrig <- lmeObject$groups[[1]]
+    idOrig <- lmeObject$groups[[1L]]
     id <- as.vector(unclass(idOrig))
     b <- data.matrix(ranef(lmeObject))
     dimnames(b) <- NULL
@@ -166,12 +166,14 @@ function (lmeObject, survObject, timeVar,
                 lng.in.kn = if (baseHaz == "P-splines") 15L else 5L, ordSpline = 4L, 
                 seed = 1L, diff = 2L, 
                 GQsurv = if (!estimateWeightFun) "GaussKronrod" else "GaussLegendre", 
-                GQsurv.k = if (!estimateWeightFun) 15L else 17L, verbose = TRUE)
+                GQsurv.k = if (!estimateWeightFun) 15L else 17L,
+                priorShapes = list(shape1 = dunif, shape2 = dunif, shape3 = dunif),
+                verbose = TRUE, verbose2 = FALSE)
     control <- c(control, list(...))
     namC <- names(con)
     con[(namc <- names(control))] <- control
     if (!any(namc == "n.thin"))
-        con$n.thin <- round(con$n.iter / 2000)
+        con$n.thin <- if (con$n.iter >= 2000) round(con$n.iter / 2000) else 1
     if (length(noNms <- namc[!namc %in% namC]) > 0)
         warning("unknown names in control: ", paste(noNms, collapse = ", "))
     # construct desing matrices for longitudinal part for the hazard function
@@ -248,7 +250,8 @@ function (lmeObject, survObject, timeVar,
             if (is.null(weightFun) || !is.function(weightFun)) {
                 weightFun <- function (u, parms, t.max) {
                     num <- dnorm(x = u, mean = parms[1L], sd = parms[2L])
-                    den <- pnorm(q = t.max, mean = parms[1L], sd = parms[2L]) - 0.5
+                    den <- diff.default(x = pnorm(q = c(0, t.max), mean = parms[1L], 
+                                                  sd = parms[2L]))
                     num / den
                 }
             }
@@ -267,7 +270,7 @@ function (lmeObject, survObject, timeVar,
         if (baseHaz == "P-splines") {
             tt <- if (con$ObsTimes.knots) Time else Time[event == 1]
             pp <- quantile(tt, c(0.05, 0.95), names = FALSE)
-            tail(head(seq(pp[1], pp[2], length.out = con$lng.in.kn), -1), -1)
+            tail(head(seq(pp[1L], pp[2L], length.out = con$lng.in.kn), -1), -1)
         } else {
             pp <- seq(0, 1, length.out = con$lng.in.kn + 2)
             pp <- tail(head(pp, -1), -1)
@@ -335,8 +338,7 @@ function (lmeObject, survObject, timeVar,
         } else if (ind3 || (!ind2 && w2 == w3)) {
             2
         } else 3
-        initial.values$shapes <- rep(1, nshapes)
-        initial.values$alphas <- 1
+        initial.values$shapes <- rep(0.1, nshapes)
     }
     initial.values <- initial.values[!sapply(initial.values, is.null)]
     if (!is.null(init)) {
@@ -365,21 +367,22 @@ function (lmeObject, survObject, timeVar,
         prs$priorB.tauBs <- 0.005
     }
     if (!is.null(W)) {
-        prs$priorMean.gammas <- rep(0, ncol(W))
+        prs$priorMean.gammas <- numeric(ncol(W))
         prs$priorTau.gammas <- drop(diag(1 / con$priorVar, ncol(W)))
     }
     if (param %in% c("td-value", "td-both", "shared-betasRE", "shared-RE")) {
-        prs$priorMean.alphas <- rep(0, length(initial.values$alphas))
+        prs$priorMean.alphas <- numeric(length(initial.values$alphas))
         prs$priorTau.alphas <- drop(diag(10 / con$priorVar, length(initial.values$alphas)))
     }
     if (param %in% c("td-extra", "td-both")) {
-        prs$priorMean.Dalphas <- rep(0, length(initial.values$Dalphas))
+        prs$priorMean.Dalphas <- numeric(length(initial.values$Dalphas))
         prs$priorTau.Dalphas <- drop(diag(10 / con$priorVar, length(initial.values$Dalphas)))
     }
     if (estimateWeightFun) {
-        prs$priorshape1 <- c(0, 10)
-        prs$priorshape2 <- c(0, 10)
-        prs$priorshape3 <- c(0, 10)
+        maxT <- max(Time) * 0.7
+        prs$priorshape1 <- c(-maxT, maxT)
+        prs$priorshape2 <- c(1e-04, 2 * maxT)
+        prs$priorshape3 <- c(-maxT, maxT)
     }
     if (!is.null(priors)) {
         lngths <- lapply(prs[(nam.prs <- names(priors))], length)

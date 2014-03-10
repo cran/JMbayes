@@ -5,7 +5,7 @@ function (call) {
         paste(d, sep = "\n", collapse = "\n")
     } else {
         d <- d[1:3]
-        d[3] <- paste(d[3], "...")
+        d[3] <- paste0(d[3], "...")
         paste(d, sep = "\n", collapse = "\n")
     }
 }

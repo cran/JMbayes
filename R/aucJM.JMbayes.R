@@ -47,7 +47,8 @@ function (object, newdata, Tstart, Thoriz = NULL, Dt = NULL, idVar = "id",
         if (any(ind3)) {
             nams <- unique(names(ind3[ind3]))
             pi2 <- survfitJM(object, newdata = newdata2[id %in% nams, ], idVar = idVar, 
-                             last.time = Time[nams], survTimes = Thoriz, simulate = simulate, M = M)
+                             last.time = Time[nams], survTimes = Thoriz, 
+                             simulate = simulate, M = M)
             pi2 <- 1 - sapply(pi2$summaries, "[", 1, 2)
             nams2 <- names(ind3[ind3])
             ind[ind3] <- ind[ind3] * pi2[nams2]

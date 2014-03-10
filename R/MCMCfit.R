@@ -1,6 +1,6 @@
 MCMCfit <-
-function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, scales, Funs,
-                     Covs, Data, control, df.RE) {
+function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
+                     scales, Funs, Covs, Data, control, df.RE) {
     # extract data longitudinal
     y.long <- dropAttr(y$y)
     X <- dropAttr(x$X)
@@ -135,20 +135,23 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
     log.prior.Dalphas <- function (Dalphas) {
         dmvnorm(Dalphas, priorMean.Dalphas, invSigma = priorTau.Dalphas, log = TRUE)
     }
+    priorshape1Fun <- control$priorShapes$shape1
     priorshape1.low <- priors$priorshape1[1L]
     priorshape1.upp <- priors$priorshape1[2L]
     log.prior.shape1 <- function (shape1) {
-        dunif(shape1, priorshape1.low, priorshape1.upp, log = TRUE)
+        priorshape1Fun(shape1, priorshape1.low, priorshape1.upp, log = TRUE)
     }
+    priorshape2Fun <- control$priorShapes$shape2
     priorshape2.low <- priors$priorshape2[1L]
     priorshape2.upp <- priors$priorshape2[2L]
     log.prior.shape2 <- function (shape2) {
-        dunif(shape2, priorshape2.low, priorshape2.upp, log = TRUE)
+        priorshape2Fun(shape2, priorshape2.low, priorshape2.upp, log = TRUE)
     }
+    priorshape3Fun <- control$priorShapes$shape3
     priorshape3.low <- priors$priorshape3[1L]
     priorshape3.upp <- priors$priorshape3[2L]
     log.prior.shape3 <- function (shape3) {
-        dunif(shape3, priorshape3.low, priorshape3.upp, log = TRUE)
+        priorshape3Fun(shape3, priorshape3.low, priorshape3.upp, log = TRUE)
     }
     # define posteriors
     logPost.betas <- function (betas){
@@ -177,10 +180,10 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
             }
             if (estimateWeightFun) {
                 Xsbetas <- drop(Xs %*% betas)
-                vl <- transFun.value(P * fastSumID(w * wFun * (Xsbetas + Zsb), id.GK), data.id)
+                vl <- transFun.value(P * fastSumID(wFun * (Xsbetas + Zsb), id.GK), data.id)
                 Mtime <- Mtime + if (is.matrix.vl) drop(vl %*% alphas) else vl * alphas
                 Xubetas <- drop(Xu %*% betas)
-                vls <- transFun.value(P2 * fastSumID(w2 * wFun2 * (Xubetas + Zub), id.GK2), data.s)
+                vls <- transFun.value(P2 * fastSumID(wFun2 * (Xubetas + Zub), id.GK2), data.s)
                 Ms <- Ms + if (is.matrix.vls) drop(vls %*% alphas) else vls * alphas
             }
             log.Surv <- Int <- P * fastSumID(w * exp(log.h0s + Ms), id.GK)
@@ -268,10 +271,10 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
             }
             if (estimateWeightFun) {
                 Zsb <- .rowSums(Zs * b[id.GK, , drop = FALSE], nrZs, ncZ)
-                vl <- transFun.value(P * fastSumID(w * wFun * (Xsbetas + Zsb), id.GK), data.id)
+                vl <- transFun.value(P * fastSumID(wFun * (Xsbetas + Zsb), id.GK), data.id)
                 Mtime <- Mtime + if (is.matrix.vl) drop(vl %*% alphas) else vl * alphas
                 Zub <- .rowSums(Zu * b[id.GKu, , drop = FALSE], nrZu, ncZ)
-                vls <- transFun.value(P2 * fastSumID(w2 * wFun2 * (Xubetas + Zub), id.GK2), data.s)
+                vls <- transFun.value(P2 * fastSumID(wFun2 * (Xubetas + Zub), id.GK2), data.s)
                 Ms <- Ms + if (is.matrix.vls) drop(vls %*% alphas) else vls * alphas
             }
             log.Surv <- Int <- P * fastSumID(w * exp(log.h0s + Ms), id.GK)
@@ -425,12 +428,12 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
         shapes[which] <- shape
         Ms <- numeric(ns)
         ###
-        wFun <- weightFun(u.idGK, shapes, max.time)
-        vl <- transFun.value(P * fastSumID(w * wFun * XsbetasZsb, id.GK), data.id)
+        wFun <- w * weightFun(u.idGK, shapes, max.time)
+        vl <- transFun.value(P * fastSumID(wFun * XsbetasZsb, id.GK), data.id)
         Mtime <- if (is.matrix.vl) drop(vl %*% alphas) else vl * alphas
         ###
-        wFun2 <- weightFun(u.idGK2, shapes, max.time)
-        vls <- transFun.value(P2 * fastSumID(w2 * wFun2 * XubetasZub, id.GK2), data.s)
+        wFun2 <- w2 * weightFun(u.idGK2, shapes, max.time)
+        vls <- transFun.value(P2 * fastSumID(wFun2 * XubetasZub, id.GK2), data.s)
         Ms <- Ms + if (is.matrix.vls) drop(vls %*% alphas) else vls * alphas
         ###
         if (paramExtra) {
@@ -571,14 +574,14 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
         Ms <- Ms + if (is.matrix.exs) drop(exs %*% Dalphas) else exs * Dalphas
     }
     if (estimateWeightFun) {
-        wFun <- weightFun(u.idGK, shapes, max.time)
+        wFun <- w * weightFun(u.idGK, shapes, max.time)
         Xsbetas <- drop(Xs %*% betas)
         Zsb <- rowSums(Zs * b[id.GK, , drop = FALSE])
-        wFun2 <- weightFun(u.idGK2, shapes, max.time)
+        wFun2 <- w2 * weightFun(u.idGK2, shapes, max.time)
         Xubetas <- drop(Xu %*% betas)
         Zub <- rowSums(Zu * b[id.GKu, , drop = FALSE])
-        vl <- transFun.value(P * fastSumID(w * wFun * (Xsbetas + Zsb), id.GK), data.id)
-        vls <- transFun.value(P2 * fastSumID(w2 * wFun2 * (Xubetas + Zub), id.GK2), data.s)
+        vl <- transFun.value(P * fastSumID(wFun * (Xsbetas + Zsb), id.GK), data.id)
+        vls <- transFun.value(P2 * fastSumID(wFun2 * (Xubetas + Zub), id.GK2), data.s)
         is.matrix.vl <- is.matrix(vl); is.matrix.vls <- is.matrix(vls)
         Mtime <- Mtime + if (is.matrix.vl) drop(vl %*% alphas) else vl * alphas
         Ms <- Ms + if (is.matrix.vls) drop(vls %*% alphas) else vls * alphas
@@ -803,30 +806,30 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
         }
         # update shapes
         if (estimateWeightFun) {
-            #cat("\ni =", i, "\tshape1 =", round(shapes[1], 3),
-            #    "\tshape2 =", round(shapes[2], 3), "\tshape3 =", round(shapes[3], 3), 
-            #    "\talphas =", round(alphas, 3),
-            #    "\tbetas = ", round(betas, 3))
+            if (control$verbose2)
+                cat("\ni =", i, "\tshapes =", round(shapes, 3), 
+                    if (paramExtra) "\tDalphas =", if (paramExtra) round(Dalphas, 3), 
+                    "\talphas =", round(alphas, 3), "\tbetas = ", round(betas, 3))
             XsbetasZsb <- Xsbetas + Zsb
             XubetasZub <- Xubetas + Zub
             for (shp in seq.nshapes) {
                 ss <- 1
-                slice.shape <- slice.shape(logPost.shape, shapes, step = ss, which = shp)
-                while(slice.shape$fail) {
+                slice.shp <- slice.shape(logPost.shape, shapes, step = ss, which = shp)
+                while(slice.shp$fail) {
                     ss <- ss/10
                     if (ss < 1e-05)
                         break
-                    slice.shape <- slice.shape(logPost.shape, shapes, step = ss, which = shp)
+                    slice.shp <- slice.shape(logPost.shape, shapes, step = ss, which = shp)
                 }
-                shapes[shp] <- slice.shape$new.shape
+                shapes[shp] <- slice.shp$new.shape
                 if (shp == nshapes) {
-                    log.Surv <- slice.shape$log.Surv
-                    Ms <- slice.shape$Ms
-                    Int <- slice.shape$Int
-                    wFun <- slice.shape$wFun
-                    wFun2 <- slice.shape$wFun2
-                    vl <- slice.shape$vl
-                    vls <- slice.shape$vls                    
+                    log.Surv <- slice.shp$log.Surv
+                    Ms <- slice.shp$Ms
+                    Int <- slice.shp$Int
+                    wFun <- slice.shp$wFun
+                    wFun2 <- slice.shp$wFun2
+                    vl <- slice.shp$vl
+                    vls <- slice.shp$vls                    
                 }
             }
         }
@@ -886,15 +889,15 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
                     Ms <- Ms + if (is.matrix.exs) drop(exs %*% Dalphas) else exs * Dalphas
                 }
                 if (estimateWeightFun) {
-                    wFun <- weightFun(u.idGK, shapes, max.time)
+                    wFun <- w * weightFun(u.idGK, shapes, max.time)
                     Xsbetas <- drop(Xs %*% betas)
                     Zsb <- rowSums(Zs * b[id.GK, , drop = FALSE])
-                    vl <- transFun.value(P * fastSumID(w * wFun * (Xsbetas + Zsb), id.GK), data.id)
+                    vl <- transFun.value(P * fastSumID(wFun * (Xsbetas + Zsb), id.GK), data.id)
                     Mtime <- Mtime + if (is.matrix.vl) drop(vl %*% alphas) else vl * alphas
-                    wFun2 <- weightFun(u.idGK2, shapes, max.time)
+                    wFun2 <- w2 * weightFun(u.idGK2, shapes, max.time)
                     Xubetas <- drop(Xu %*% betas)
                     Zub <- rowSums(Zu * b[id.GKu, , drop = FALSE])
-                    vls <- transFun.value(P2 * fastSumID(w2 * wFun2 * (Xubetas + Zub), id.GK2), data.s)
+                    vls <- transFun.value(P2 * fastSumID(wFun2 * (Xubetas + Zub), id.GK2), data.s)
                     Ms <- Ms + if (is.matrix.vls) drop(vls %*% alphas) else vls * alphas
                 }
                 log.Surv <- Int <- P * fastSumID(w * exp(log.h0s + Ms), id.GK)
@@ -916,7 +919,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
         }
     })
     if (control$verbose)
-        close(pb)
+        close(pb)    
     mcmcOut <- list(betas = res.betas, sigma = if (hasScale) 1/sqrt(res.tau), b = res.b,
                     D = if (ncZ > 1) t(apply(res.invD, 1, function (x) solve.default(matrix(x, ncZ))))
                     else as.matrix(apply(res.invD, 1, function (x) solve.default(matrix(x, ncZ)))),
@@ -956,15 +959,15 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
             Ms <- Ms + if (is.matrix.exs) drop(exs %*% Dalphas) else exs * Dalphas
         }
         if (estimateWeightFun) {
-            wFun <- weightFun(u.idGK, shapes, max.time)
+            wFun <- w * weightFun(u.idGK, shapes, max.time)
             Xsbetas <- drop(Xs %*% betas)
             Zsb <- rowSums(Zs * b[id.GK, , drop = FALSE])
-            vl <- transFun.value(P * fastSumID(w * wFun * (Xsbetas + Zsb), id.GK), data.id)
+            vl <- transFun.value(P * fastSumID(wFun * (Xsbetas + Zsb), id.GK), data.id)
             Mtime <- Mtime + if (is.matrix.vl) drop(vl %*% alphas) else vl * alphas
-            wFun2 <- weightFun(u.idGK2, shapes, max.time)
+            wFun2 <- w2 * weightFun(u.idGK2, shapes, max.time)
             Xubetas <- drop(Xu %*% betas)
             Zub <- rowSums(Zu * b[id.GKu, , drop = FALSE])
-            vls <- transFun.value(P2 * fastSumID(w2 * wFun2 * (Xubetas + Zub), id.GK2), data.s)
+            vls <- transFun.value(P2 * fastSumID(wFun2 * (Xubetas + Zub), id.GK2), data.s)
             Ms <- Ms + if (is.matrix.vls) drop(vls %*% alphas) else vls * alphas
         }
         log.Surv <- P * fastSumID(w * exp(log.h0s + Ms), id.GK)

@@ -1,9 +1,13 @@
 plot.survfit.JMbayes <-
-function (x, estimator = c("both", "mean", "median"), which = NULL, fun = NULL, invlink = NULL, conf.int = FALSE,
-        fill.area = FALSE, col.area = "grey", col.abline = "black", col.points = "black", 
-        add.last.time.axis.tick = FALSE, include.y = FALSE, main = NULL, xlab = NULL, ylab = NULL, ylab2 = NULL,
-        lty = NULL, col = NULL, lwd = NULL, pch = NULL, ask = NULL, legend = FALSE, ..., cex.axis.z = 1, 
-        cex.lab.z = 1, xlim = NULL) {
+function (x, estimator = c("both", "mean", "median"), 
+                                  which = NULL, fun = NULL, invlink = NULL, 
+                                  conf.int = FALSE, fill.area = FALSE, col.area = "grey", 
+                                  col.abline = "black", col.points = "black", 
+                                  add.last.time.axis.tick = FALSE, include.y = FALSE, 
+                                  main = NULL, xlab = NULL, ylab = NULL, ylab2 = NULL, 
+                                  lty = NULL, col = NULL, lwd = NULL, pch = NULL, 
+                                  ask = NULL, legend = FALSE, ..., cex.axis.z = 1, 
+                                  cex.lab.z = 1, xlim = NULL) {
     estimator <- match.arg(estimator)
     fun <- if (!is.null(fun)) match.fun(fun)
     if (is.null(which))
@@ -31,12 +35,12 @@ function (x, estimator = c("both", "mean", "median"), which = NULL, fun = NULL, 
                 rep(expression(paste("Pr(", T[i] >= u, " | ", T[i] > t, 
                     ", ", tilde(y)[i](t), ")", sep = " ")), length(which))
             else
-                rep("Survival Probability", length(which))
+                rep("Event-free Probability", length(which))
         else
             rep("", length(which))
     }
     if (is.null(ylab2))
-        ylab2 <- "Longitudinal Outcome"
+        ylab2 <- x$nameY
     if (!is.null(x$success.rate)) {
         if (is.null(col))
             col <- switch(estimator, both = c(2, 3, 1, 1), mean = c(2, 1, 1), median = c(3, 1, 1))

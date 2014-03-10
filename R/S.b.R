@@ -17,7 +17,8 @@ function (t, b, ii, Mats) {
     if (param %in% c("td-value", "td-both"))
         Ys <- transFun.value(c(Xs %*% betas.new + Zs %*% b), data.s[ids.i, ])
     if (param %in% c("td-extra", "td-both"))
-        Ys.extra <- transFun.extra(c(Xs.extra %*% betas.new[indFixed] + Zs.extra %*% b[indRandom]), data.s[ids.i, ])
+        Ys.extra <- transFun.extra(c(Xs.extra %*% betas.new[indFixed] + 
+                                         Zs.extra %*% b[indRandom]), data.s[ids.i, ])
     tt <- c(switch(param,
                    "td-value" = as.matrix(Ys) %*% alphas.new, 
                    "td-extra" =  as.matrix(Ys.extra) %*% Dalphas.new,

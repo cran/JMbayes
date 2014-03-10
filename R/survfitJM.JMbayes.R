@@ -84,7 +84,6 @@ function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL,
                         Dalphas = Dalphas, Bs.gammas = Bs.gammas, D = D)
     list.thetas <- list.thetas[!sapply(list.thetas, is.null)]
     thetas <- unlist(as.relistable(list.thetas))
-    Var.thetas <- vcov(object)
     environment(log.posterior.b) <- environment(S.b) <- environment(ModelMats) <- environment()
     # construct model matrices to calculate the survival functions
     obs.times.surv <- split(data.id[[timeVar]], idT)
@@ -110,7 +109,8 @@ function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL,
         if (inherits(opt, "try-error")) {
             gg <- function (b, y, tt, mm, i) cd(b, ff, y = y, tt = tt, i = i)
             opt <- optim(rep(0, ncz), ff, gg, y = y, tt = survMats.last, 
-                i = i, method = "BFGS", hessian = TRUE, control = list(parscale = rep(0.1, ncz)))
+                i = i, method = "BFGS", hessian = TRUE, 
+                control = list(parscale = rep(0.1, ncz)))
         } 
         modes.b[i, ] <- opt$par
         invVars.b[[i]] <- opt$hessian/scale
@@ -164,7 +164,8 @@ function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL,
             for (i in seq_len(n.tp)) {
                 # Step 2: simulate new random effects values
                 p.b <- proposed.b[[i]][m, ]
-                dmvt.old <- dmvt(b.old[i, ], modes.b[i, ], invSigma = invVars.b[[i]], df = 4, log = TRUE)
+                dmvt.old <- dmvt(b.old[i, ], modes.b[i, ], invSigma = invVars.b[[i]], 
+                                 df = 4, log = TRUE)
                 dmvt.prop <- dmvt.proposed[[i]][m]
                 a <- min(exp(log.posterior.b(p.b, y, survMats.last, ii = i) + dmvt.old - 
                         log.posterior.b(b.old[i, ], y, survMats.last, ii = i) - dmvt.prop), 1)
@@ -214,7 +215,8 @@ function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL,
     res <- list(summaries = res, survTimes = survTimes, last.time = last.time, 
         obs.times = obs.times, y = y, 
         fitted.times = split(newdata.[[timeVar]], factor(newdata.[[idVar]])), 
-        fitted.y = fitted.y, ry = range(object$y$y, na.rm = TRUE))
+        fitted.y = fitted.y, ry = range(object$y$y, na.rm = TRUE),
+        nameY = paste(object$Forms$formYx)[2L])
     if (simulate) {
         res$full.results <- out
         res$success.rate <- success.rate

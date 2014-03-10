@@ -9,24 +9,27 @@ function (b, y, Mats, ii) {
     logY <- densLong(y[id.i], mu.y, sigma.new, log = TRUE, data = newdata[id.i, ])
     log.p.yb <- sum(logY)
     log.p.b <- densRE(b, D = D.new, log = TRUE, prop = FALSE)
-    st <- Mats[[ii]]$st
-    wk <- Mats[[ii]]$wk
-    P <- Mats[[ii]]$P
-    W2s <- Mats[[ii]]$W2s
-    Xs <- Mats[[ii]]$Xs
-    Zs <- Mats[[ii]]$Zs
-    Xs.extra <- Mats[[ii]]$Xs.extra
-    Zs.extra <- Mats[[ii]]$Zs.extra
-    ind <- Mats[[ii]]$ind
-    idT <- Mats[[ii]]$idT
+    MM <- Mats[[ii]]
+    st <- MM$st
+    wk <- MM$wk
+    P <- MM$P
+    W2s <- MM$W2s
+    Xs <- MM$Xs
+    Zs <- MM$Zs
+    Xs.extra <- MM$Xs.extra
+    Zs.extra <- MM$Zs.extra
+    ind <- MM$ind
+    idT <- MM$idT
     if (param %in% c("td-value", "td-both"))
         Ys <- transFun.value(c(Xs %*% betas.new + Zs %*% b), data.s[ids.i, ])
     if (param %in% c("td-extra", "td-both"))
-        Ys.extra <- transFun.extra(c(Xs.extra %*% betas.new[indFixed] + Zs.extra %*% b[indRandom]), data.s[ids.i, ])
+        Ys.extra <- transFun.extra(c(Xs.extra %*% betas.new[indFixed] + 
+                                         Zs.extra %*% b[indRandom]), data.s[ids.i, ])
     tt <- c(switch(param,
                    "td-value" = as.matrix(Ys) %*% alphas.new, 
                    "td-extra" =  as.matrix(Ys.extra) %*% Dalphas.new,
-                   "td-both" = as.matrix(Ys) %*% alphas.new + as.matrix(Ys.extra) %*% Dalphas.new,
+                   "td-both" = as.matrix(Ys) %*% alphas.new + 
+                       as.matrix(Ys.extra) %*% Dalphas.new,
                    "shared-betasRE" = rep(sum((betas[indBetas] + b) * alphas.new), length(st)),
                    "shared-RE" = rep(sum(b * alphas.new), length(st))))
     eta.tw <- if (!is.null(W)) {

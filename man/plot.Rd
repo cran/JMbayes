@@ -9,7 +9,7 @@
 }
 
 \usage{
-\method{plot}{JMbayes}(x, which = c("trace", "autocorr", "CPO", "weightFun"), 
+\method{plot}{JMbayes}(x, which = c("trace", "autocorr", "density", "CPO", "weightFun"), 
     param = c("betas", "sigma", "D", "gammas", "alphas", "Dalphas", 
         "shapes", "Bs.gammas", "tauBs"), ask = TRUE, max.t = NULL, 
     from = 0, \dots)

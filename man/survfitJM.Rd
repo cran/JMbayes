@@ -119,6 +119,11 @@ for (i in 1:nrow(ND)) {
     survPreds[[i]] <- survfitJM(jointFit, newdata = ND[1:i, ])
 }
 survPreds
+
+# run Shiny app
+library("shiny")
+runApp(file.path(.Library, "JMbayes/demo"))
+
 }
 }
 

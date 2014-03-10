@@ -15,7 +15,5 @@ function (k = 15) {
     } else {
         list(sk = sk, wk = wk15)
     }
-    ord <- order(out$sk)
-    f <- function (x, ord) x[ord]
-    lapply(out, f, ord = ord)
+    out
 }
