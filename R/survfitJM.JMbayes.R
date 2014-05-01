@@ -1,7 +1,7 @@
 survfitJM.JMbayes <-
-function (object, newdata, idVar = "id", simulate = TRUE, survTimes = NULL, 
-            last.time = NULL, M = 200, CI.levels = c(0.025, 0.975), scale = 1.6, 
-                               weight = rep(1, nrow(newdata)), seed = 1, ...) {
+function (object, newdata, idVar = "id", simulate = TRUE, 
+            survTimes = NULL, last.time = NULL, M = 200, CI.levels = c(0.025, 0.975), 
+            scale = 1.6, weight = rep(1, nrow(newdata)), seed = 1, ...) {
     if (!inherits(object, "JMbayes"))
         stop("Use only with 'JMbayes' objects.\n")
     if (!is.data.frame(newdata) || nrow(newdata) == 0)

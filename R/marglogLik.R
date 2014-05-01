@@ -11,8 +11,8 @@ function (object, newdata, idVar = "id", method = "BFGS", control = NULL) {
     df.RE <- object$df.RE
     param <- object$param
     extraForm <- object$Forms$extraForm
-    indFixed <- extraForm$Forms$indFixed
-    indRandom <- extraForm$Forms$indRandom
+    indFixed <- extraForm$indFixed
+    indRandom <- extraForm$indRandom
     TermsX <- object$Terms$termsYx
     TermsZ <- object$Terms$termsYz
     TermsX.extra <- object$Terms$termsYx.extra

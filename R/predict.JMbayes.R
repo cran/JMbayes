@@ -1,8 +1,8 @@
 predict.JMbayes <-
 function (object, newdata, type = c("Marginal", "Subject"),
     interval = c("none", "confidence", "prediction"), level = 0.95, idVar = "id", 
-    FtTimes = NULL, M = 300, returnData = FALSE, scale = 1.6, 
-    weight = rep(1, nrow(newdata)), invlink = NULL, ...) {
+    FtTimes = NULL, last.time = NULL, M = 300, returnData = FALSE, scale = 1.6, 
+    weight = rep(1, nrow(newdata)), invlink = NULL, seed = 1, ...) {
     if (!inherits(object, "JMbayes"))
         stop("Use only with 'JMbayes' objects.\n")
     if (!is.data.frame(newdata) || nrow(newdata) == 0)
@@ -93,7 +93,13 @@ function (object, newdata, type = c("Marginal", "Subject"),
         formT <- if (length(tt)) reformulate(tt) else reformulate("1")
         W <- model.matrix(formT, mfT)[, -1, drop = FALSE]
         obs.times <- split(newdata[[timeVar]], id.)
-        last.time <- tapply(newdata[[timeVar]], id., tail, n = 1)
+        last.time <- if (is.null(last.time)) {
+            tapply(newdata[[timeVar]], id., tail, n = 1)
+        } else if (is.numeric(last.time) && length(last.time) == nrow(data.id)) {
+            last.time
+        } else {
+            stop("\nnot appropriate value for 'last.time' argument.")
+        }
         times <- object$Data$data[[timeVar]]
         times.to.pred <- if (is.null(FtTimes)) {
             lapply(last.time, 
@@ -144,6 +150,7 @@ function (object, newdata, type = c("Marginal", "Subject"),
         # calculate the Empirical Bayes estimates and their (scaled) variance
         modes.b <- matrix(0, n.tp, ncz)
         invVars.b <- Vars.b <- vector("list", n.tp)
+        set.seed(seed)
         for (i in seq_len(n.tp)) {
             betas.new <- betas
             sigma.new <- sigma

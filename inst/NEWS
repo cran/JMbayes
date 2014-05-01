@@ -1,3 +1,11 @@
+Changes in version: JMbayes_0.6-0
+
+  * Impovements in the shiny web interface.
+  * Added functionality for estimating the weight function of the cumulative effect parameterization.
+  * Small bug fixes.
+
+---------------------------------------
+
 Changes in version: JMbayes_0.5-3
 
   * Small bug fixes.

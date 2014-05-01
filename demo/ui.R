@@ -14,10 +14,10 @@ shinyUI(pageWithSidebar(
 
             withTags(div(class = 'row-fluid',
                          div(class = 'span3', radioButtons('sep', 'Separator', c(Comma = ',', 
-                                                                                 Semicolon = ';', Tab = '\t'), 'Comma')),
-                         div(class = 'span3', radioButtons('dec', 'Decimal', c(Dot = '.', Comma = ','), 'Dot')),
+                                                                                 Semicolon = ';', Tab = '\t'), ',')),
+                         div(class = 'span3', radioButtons('dec', 'Decimal', c(Dot = '.', Comma = ','), '.')),
                          div(class = 'span5', radioButtons('quote', 'Quote', c(None = '', 'Double Quote' = '"', 
-                                                                               'Single Quote' = "'"), 'Double Quote'))
+                                                                               'Single Quote' = "'"), '"'))
             ))
         ),
         
@@ -25,6 +25,11 @@ shinyUI(pageWithSidebar(
             uiOutput("modelChoose"),            
             
             uiOutput("obsChoose"),
+            
+            radioButtons('TypePlot', 'Type of Plot', 
+                         c("Survival" = 'surv', "Cumulative Incidence" = "cumInc",
+                           "Stick Man" = 'stickMan', "Longitudinal" = 'longitudinal'), 
+                         "surv"),
             
             withTags(div(class = 'row-fluid',
                          div(class = 'span7', numericInput("time", "Target horizon time:", NULL)),

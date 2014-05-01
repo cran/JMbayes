@@ -1,6 +1,6 @@
 bma.combine <-
-function (..., weights = NULL) {
-    lis <- list(...)
+function (..., JMlis = NULL, weights = NULL) {
+    lis <- if (is.null(JMlis) || !is.list(JMlis)) list(...) else JMlis 
     classes <- sapply(lis, class)
     if (is.matrix(classes))
         classes <- classes[2, ]

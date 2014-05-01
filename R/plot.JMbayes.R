@@ -20,7 +20,7 @@ function (x, which = c("trace", "autocorr", "density", "CPO", "weightFun"),
                 plot(pp[, i], type = "l", xlab = "iterations", ylab = nams[i])
         } else if (which == "density") {
             for (i in 1:ncol(pp)) {
-                bw <- bw.SJ(pp[, i]) * 1.3
+                bw <- bw.SJ(pp[, i]) * 1.5
                 plot(density(pp[, i], bw = bw), xlab = nams[i], 
                      main = paste("Density of", nams[i]))
             }            

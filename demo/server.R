@@ -31,18 +31,7 @@ shinyServer(function(input, output) {
             get(objs[input$model])
         }
     })
-    
-    #loadObject <- reactive({
-    #    inFile <- input$RDfile
-    #    load(inFile$datapath)
-    #    objs <- ls()
-    #    ss <- sapply(objs, function (o) class(get(o))) == "JMbayes"
-    #    if (all(!ss))
-    #        stop("\nIt seems that there is no joint model fitted by jointModelBayes() ", 
-    #             "in the workspace that you loaded ...")
-    #    get(objs[ss][1])
-    #})
-    
+        
     dataObject <- reactive({
         if (!is.null(input$RDfile) && !is.null(input$model)) {
             object <- loadObject()
@@ -138,7 +127,7 @@ shinyServer(function(input, output) {
     })
     
     sfits <- reactive({
-        if (!is.null(input$patientFile)) {
+        if (!is.null(input$patientFile) && input$TypePlot != 'longitudinal') {
             object <- loadObject()
             nd <- ND()
             n <- nrow(nd)
@@ -152,6 +141,25 @@ shinyServer(function(input, output) {
                                         last.time = lt)
             }
             sfits
+        }
+    })
+    
+    lfits <- reactive({
+        if (!is.null(input$patientFile) && input$TypePlot == 'longitudinal') {
+            object <- loadObject()
+            nd <- ND()
+            n <- nrow(nd)
+            lastTimeUser <- input$lasttime
+            lastTimeData <- max(nd[[object$timeVar]])
+            lfits <- vector("list", n)
+            for (i in 1:n) {
+                lt <- if (i == n && !is.na(lastTimeUser) && lastTimeUser > lastTimeData) 
+                    lastTimeUser else NULL
+                lfits[[i]] <- predict(object, newdata = nd[1:i, ], M = input$M, 
+                                      returnData = TRUE, type = "Subject", 
+                                      interval = "prediction", last.time = lt)
+            }
+            lfits
         }
     })
     
@@ -223,27 +231,103 @@ shinyServer(function(input, output) {
     
     output$plot <- renderPlot({
         if (!is.null(input$patientFile)) {
-            sfits. <- sfits()
-            nn <- if(is.na(input$obs)) length(sfits.) else input$obs
-            plot(sfits.[[nn]], estimator = "mean", conf.int = TRUE, fill.area = TRUE, 
-                 include.y = TRUE, lwd = 2, ask = FALSE, cex = 2, main = "")
-            if (input$extra) {
-                object <- loadObject()
-                nd <- ND()
-                nr <- nrow(nd)
-                lastTimeUser <- input$lasttime
-                lastTimeData <- max(nd[1:nn, object$timeVar])
-                target.time <- if (nn == nr && !is.na(lastTimeUser) && 
-                                       lastTimeUser > lastTimeData) {
-                    lastTimeUser + input$time
+            if (input$TypePlot != 'longitudinal') {
+                if (!is.na(input$time) && input$extra && input$TypePlot == "stickMan") {
+                    sfits. <- sfits2()
+                    nn <- if(is.na(input$obs)) length(sfits.) else input$obs
+                    ss <- round(100 * (1 - sfits.[[nn]][["summaries"]][[1]][1, 2]))
+                    draw.stick <- JMbayes:::draw.stick
+                    xx <- seq(0.2, 1.1, 0.1)
+                    yy <- seq(0.0, 1.8, 0.2)
+                    cords <- expand.grid(xx, rev(yy))
+                    cols <- rep("blue", 100)
+                    cols[seq_len(ss)] <- "red"
+                    op <- par(mar = c(0, 0, 2.1, 0))
+                    plot(c(.25, 1.25), c(0, 2), type = "n", xaxt = 'n', yaxt = 'n', ann = FALSE)
+                    title(paste0("Risk = ", ss, "%"), cex.main = 1.7)
+                    for (cc in 1:100) {
+                        draw.stick(cords[cc, 1], cords[cc, 2], linecol = cols[cc], scale = 0.2)
+                    }
+                    par(op)
                 } else {
-                    lastTimeData + input$time
+                    sfits. <- sfits()
+                    nn <- if(is.na(input$obs)) length(sfits.) else input$obs
+                    if (input$TypePlot == "surv") {
+                        plot(sfits.[[nn]], estimator = "mean", conf.int = TRUE, fill.area = TRUE, 
+                             include.y = TRUE, lwd = 2, ask = FALSE, cex = 2, main = "")                
+                    }
+                    if (input$TypePlot == "cumInc") {
+                        plot(sfits.[[nn]], estimator = "mean", conf.int = TRUE, fill.area = TRUE, 
+                             include.y = TRUE, lwd = 2, ask = FALSE, cex = 2, main = "",
+                             fun = function (s) 1 - s, ylab = "Cumulative Incidence")                
+                    }
+                    if (input$extra) {
+                        object <- loadObject()
+                        nd <- ND()
+                        nr <- nrow(nd)
+                        lastTimeUser <- input$lasttime
+                        lastTimeData <- max(nd[1:nn, object$timeVar])
+                        target.time <- if (nn == nr && !is.na(lastTimeUser) && 
+                                               lastTimeUser > lastTimeData) {
+                            lastTimeUser + input$time
+                        } else {
+                            lastTimeData + input$time
+                        }
+                        abline(v = target.time, lty = 2, col = 2, lwd = 2)
+                    }
                 }
-                abline(v = target.time, lty = 2, col = 2, lwd = 2)
+            } else {
+                object <- loadObject()
+                lfits. <- lfits()
+                require("lattice")
+                nn <- if(is.na(input$obs)) length(lfits.) else input$obs
+                timeVar <- object$timeVar
+                resp <- paste(object$Forms$formYx)[2L]
+                tv <- lfits.[[nn]][[timeVar]]
+                lastTimeData <- with(lfits.[[nn]], tv[!is.na(low)][1])
+                lastTimeUser <- input$lasttime
+                lastTime <- if (nn == length(lfits.)) 
+                    max(lastTimeData, lastTimeUser, na.rm = TRUE) else lastTimeData
+                form <- as.formula(paste("pred + low + upp +", resp, "~", timeVar))
+                yl <- range(c(data.matrix(do.call(rbind, lfits.)[c("pred", "low", "upp")])),
+                            na.rm = TRUE)
+                yl <- yl + c(-0.05, 0.05) * yl
+                target.time <- if (input$extra) {
+                    object <- loadObject()
+                    nd <- ND()
+                    nr <- nrow(nd)
+                    lastTimeUser <- input$lasttime
+                    lastTimeData <- max(nd[1:nn, object$timeVar])
+                    if (nn == nr && !is.na(lastTimeUser) && 
+                                           lastTimeUser > lastTimeData) {
+                        lastTimeUser + input$time
+                    } else {
+                        lastTimeData + input$time
+                    }
+                } else NA
+                print(xyplot(form, data = lfits.[[nn]], last.time = lastTime, target.time = target.time,
+                             panel = function (..., last.time, target.time) {
+                                 xx <- ..1; yy <- ..2; ind <- ..4
+                                 xx <- do.call(cbind, split(xx, ind))
+                                 yy <- do.call(cbind, split(yy, ind))
+                                 na.ind <- is.na(yy[, 2])
+                                 lx <- xx[!na.ind, 2]; ll <- yy[!na.ind, 2]; lu <- yy[!na.ind, 3]
+                                 lpolygon(c(lx, rev(lx)), c(ll, rev(lu)), border = "transparent", 
+                                          col = "lightgrey")
+                                 panel.xyplot(xx[, 1], yy[, 1], type = "l", lty = 1, col = 2, lwd = 2)
+                                 panel.xyplot(xx[, 2], yy[, 2], type = "l", lty = 2, col = 1, lwd = 2)
+                                 panel.xyplot(xx[, 3], yy[, 3], type = "l", lty = 2, col = 1, lwd = 2)
+                                 panel.xyplot(xx[na.ind, 4], yy[na.ind, 4], type = "p", pch = 8, 
+                                              cex = 1.1, col = 1)
+                                 panel.abline(v = last.time, lty = 3)
+                                 if (!is.na(target.time))
+                                     panel.abline(v = target.time, lty = 2, col = 2, lwd = 2)
+                             }, xlab = "Time", ylim = yl,
+                             ylab = paste("Predicted", resp)))
             }
         }
     })
-    
+        
     output$downloadData <- downloadHandler(
         filename = function () { paste(input$dataset, '.csv', sep = '') },
         content = function (file) {

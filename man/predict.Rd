@@ -11,8 +11,9 @@
 \usage{
 \method{predict}{JMbayes}(object, newdata, type = c("Marginal", "Subject"),
     interval = c("none", "confidence", "prediction"), level = 0.95, idVar = "id", 
-    FtTimes = NULL, M = 300, returnData = FALSE, scale = 1.6, 
-    weight = rep(1, nrow(newdata)), invlink = NULL, \dots)
+    FtTimes = NULL, last.time = NULL, M = 300, returnData = FALSE, 
+    scale = 1.6, weight = rep(1, nrow(newdata)), invlink = NULL, 
+    seed = 1, \dots)
 }
 
 \arguments{
@@ -32,6 +33,9 @@
         from the last available measurement to the maximum follow-up time of all 
         subjects (plus a small quantity). This argument is only used when 
         \code{type = "Subject"}.}
+  \item{last.time}{a numeric vector. This specifies the known time at which each of the subjects in \code{newdata}
+    was known to be alive. If \code{NULL}, then this is automatically taken as the last time each subject provided a longitudinal
+    measurement. If a numeric vector, then it is assumed to contain this last time point for each subject.}
   \item{M}{numeric scalar denoting the number of Monte Carlo samples. 
         See \bold{Details}.}
   \item{returnData}{logical; if \code{TRUE} the data frame supplied in
@@ -43,6 +47,7 @@
   \item{invlink}{a function to tranform the linear predictor of the mixed model to fitted means;
         relevant when the user has specified her own density for the longitudinal outcome in 
         \code{\link{jointModelBayes}}.}
+  \item{seed}{numeric scalar, the random seed used to produce the results.}
   \item{\dots}{additional arguments; currently none is used.}
 }
 
