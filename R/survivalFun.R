@@ -17,7 +17,7 @@ function (object, times, id = NULL, CI = FALSE, nullY = FALSE, nullCovs = FALSE)
     n <- length(object$y$Time)
     if (is.null(id))
         id <- seq_len(n)
-    if (length(times) == 1)
+    if (length(times) == 1L)
         times <- rep(times, length.out = n)
     GQsurv <- if (object$control$GQsurv == "GaussKronrod") gaussKronrod() else gaussLegendre(object$control$GQsurv.k)
     wk <- GQsurv$wk
@@ -27,19 +27,19 @@ function (object, times, id = NULL, CI = FALSE, nullY = FALSE, nullCovs = FALSE)
     st <- outer(P, sk + 1)
     id.GK <- rep(seq_along(times), each = K)
     indBetas <- object$y$indBetas
-    data.id2 <- Data$data.id[rep(1:n, each = K), ]
+    data.id2 <- Data$data.id[rep(seq_len(n), each = K), ]
     data.id2[[timeVar]] <- pmax(c(t(st)) - lag, 0)
     if (param %in% c("td-value", "td-both")) {
-        mfX <- model.frame(TermsX, data = data.id2)
-        mfZ <- model.frame(TermsZ, data = data.id2)
-        Xs <- model.matrix(formYx, mfX)
-        Zs <- model.matrix(formYz, mfZ)
+        mfX <- model.frame.default(TermsX, data = data.id2)
+        mfZ <- model.frame.default(TermsZ, data = data.id2)
+        Xs <- model.matrix.default(formYx, mfX)
+        Zs <- model.matrix.default(formYz, mfZ)
     }
     if (param %in% c("td-extra", "td-both")) {
-        mfX.extra <- model.frame(TermsX.extra, data = data.id2)
-        mfZ.extra<- model.frame(TermsZ.extra, data = data.id2)
-        Xs.extra <- model.matrix(Forms$extraForm$fixed, mfX.extra)
-        Zs.extra <- model.matrix(Forms$extraForm$random, mfZ.extra)
+        mfX.extra <- model.frame.default(TermsX.extra, data = data.id2)
+        mfZ.extra<- model.frame.default(TermsZ.extra, data = data.id2)
+        Xs.extra <- model.matrix.default(Forms$extraForm$fixed, mfX.extra)
+        Zs.extra <- model.matrix.default(Forms$extraForm$random, mfZ.extra)
     }
     betas <- object$postMeans$betas
     sigma <- object$postMeans$sigma
@@ -101,8 +101,8 @@ function (object, times, id = NULL, CI = FALSE, nullY = FALSE, nullCovs = FALSE)
             b <- object$mcmc$b[, , m]
             MCMCests[, m] <- ff(betas, sigma, D, gammas, alphas, Dalphas, Bs.gammas, b)
         }
-        attr(est, "low") <- apply(MCMCests, 1, quantile, probs = 0.025)[id]
-        attr(est, "upp") <- apply(MCMCests, 1, quantile, probs = 0.975)[id]
+        attr(est, "low") <- apply(MCMCests, 1L, quantile, probs = 0.025)[id]
+        attr(est, "upp") <- apply(MCMCests, 1L, quantile, probs = 0.975)[id]
     }
     est
 }

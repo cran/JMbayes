@@ -32,7 +32,7 @@ function (object, process = c("Longitudinal", "longitudinal", "Event", "event"),
         wk <- GQsurv$wk
         sk <- GQsurv$sk
         K <- length(sk)
-        P <- times/2
+        P <- times / 2
         st <- outer(P, sk + 1)
         id.GK <- rep(seq_along(times), each = K)
         indBetas <- object$y$indBetas

@@ -7,9 +7,9 @@ function (x, ...) {
         cat("\nPrediction of Conditional Probabilities for Events\n\n")
     }
     f <- function (d, t) {
-        dd <- d[1, , drop = FALSE]
-        dd[1, ] <- c(as.vector(t), rep(1, ncol(dd) - 1))
-        round(rbind(dd, d), 4)
+        dd <- d[1L, , drop = FALSE]
+        dd[1L, ] <- c(as.vector(t), rep(1, ncol(dd) - 1))
+        round(rbind(dd, d), 4L)
     }
     print(mapply(f, x$summaries, x$last.time, SIMPLIFY = FALSE))
     invisible(x)

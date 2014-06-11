@@ -1,16 +1,21 @@
 survfitJM.JMbayes <-
-function (object, newdata, idVar = "id", simulate = TRUE, 
-            survTimes = NULL, last.time = NULL, M = 200, CI.levels = c(0.025, 0.975), 
-            scale = 1.6, weight = rep(1, nrow(newdata)), seed = 1, ...) {
+function (object, newdata, type = c("SurvProb", "Density"), 
+                               idVar = "id", simulate = TRUE, survTimes = NULL, 
+                               last.time = NULL, M = 200L, CI.levels = c(0.025, 0.975), 
+                               scale = 1.6, weight = rep(1, nrow(newdata)), 
+                               init.b = NULL, seed = 1L, ...) {
     if (!inherits(object, "JMbayes"))
         stop("Use only with 'JMbayes' objects.\n")
-    if (!is.data.frame(newdata) || nrow(newdata) == 0)
+    if (!is.data.frame(newdata) || nrow(newdata) == 0L)
         stop("'newdata' must be a data.frame with more than one rows.\n")
     if (is.null(newdata[[idVar]]))
         stop("'idVar' not in 'newdata.\n'")
-    if (is.null(survTimes) || !is.numeric(survTimes))
-        survTimes <- seq(min(object$y$Time), 
-            quantile(object$y$Time, 0.90, names = FALSE) + 0.01, length.out = 35)
+    type <- match.arg(type)
+    TT <- object$y$Time
+    if (is.null(survTimes) || !is.numeric(survTimes)) {
+        survTimes <- seq(min(TT), quantile(TT, 0.90) + 0.01, length.out = 35L)
+    }
+    if (type != "SurvProb") simulate <- TRUE
     timeVar <- object$timeVar
     df.RE <- object$y$df.RE
     param <- object$param
@@ -27,10 +32,13 @@ function (object, newdata, idVar = "id", simulate = TRUE,
     TermsZ <- object$Terms$termsYz
     TermsX.extra <- object$Terms$termsYx.extra
     TermsZ.extra <- object$Terms$termsYz.extra
-    mfX <- model.frame(TermsX, data = newdata)
-    mfZ <- model.frame(TermsZ, data = newdata)
+    mfX <- model.frame.default(TermsX, data = newdata)
+    mfZ <- model.frame.default(TermsZ, data = newdata)
     formYx <- reformulate(attr(delete.response(TermsX), "term.labels"))
     formYz <- object$Forms$formYz
+    estimateWeightFun <- object$estimateWeightFun
+    weightFun <- object$Funs$weightFun
+    max.time <- max(TT)
     na.ind <- as.vector(attr(mfX, "na.action"))
     na.ind <- if (is.null(na.ind)) {
         rep(TRUE, nrow(newdata))
@@ -41,36 +49,45 @@ function (object, newdata, idVar = "id", simulate = TRUE,
     id <- id. <- match(id, unique(id))
     id <- id[na.ind]
     y <- model.response(mfX)
-    X <- model.matrix(formYx, mfX)
-    Z <- model.matrix(formYz, mfZ)[na.ind, , drop = FALSE]
+    X <- model.matrix.default(formYx, mfX)
+    Z <- model.matrix.default(formYz, mfZ)[na.ind, , drop = FALSE]
     TermsT <- object$Terms$termsT
     data.id <- newdata[!duplicated(id), ]
-    data.s <- data.id[rep(1:nrow(data.id), each = 15), ]
+    data.s <- data.id[rep(1:nrow(data.id), each = object$control$GQsurv.k), ]
     idT <- data.id[[idVar]]
     idT <- match(idT, unique(idT))
     ids <- data.s[[idVar]]
     ids <- match(ids, unique(ids))
-    mfT <- model.frame(delete.response(TermsT), data = data.id)
+    if (type != "SurvProb") {
+        SurvT <- model.response(model.frame(TermsT, data.id))
+        Time <- SurvT[, 1]
+        event <- SurvT[, 2]
+    }
+    mfT <- model.frame.default(delete.response(TermsT), data = data.id)
     tt <- attr(delete.response(TermsT), "term.labels")
     formT <- if (length(tt)) reformulate(tt) else reformulate("1")
-    W <- model.matrix(formT, mfT)[, -1, drop = FALSE]
+    W <- model.matrix.default(formT, mfT)[, -1L, drop = FALSE]
     obs.times <- split(newdata[[timeVar]][na.ind], id)
     last.time <- if (is.null(last.time)) {
-        tapply(newdata[[timeVar]], id., tail, n = 1)
-    } else if (is.character(last.time) && length(last.time) == 1) {
-        tapply(newdata[[last.time]], id., tail, n = 1)
-    } else if (is.numeric(last.time) && length(last.time) == nrow(data.id)) {
-        last.time
+        tapply(newdata[[timeVar]], id., tail, n = 1L)
+    } else if (is.character(last.time) && length(last.time) == 1L) {
+        tapply(newdata[[last.time]], id., tail, n = 1L)
+    } else if (is.numeric(last.time)) {
+        rep_len(last.time, length.out = nrow(data.id))
     } else {
         stop("\nnot appropriate value for 'last.time' argument.")
     }
-    times.to.pred <- lapply(last.time, function (t) survTimes[survTimes > t])
-    n <- length(object$y$Time)
+    times.to.pred <- if (type == "SurvProb") {
+        lapply(last.time, function (t) survTimes[survTimes > t])
+    } else {
+        as.list(Time)
+    }
+    n <- length(TT)
     n.tp <- length(last.time)
     ncx <- ncol(X)
     ncz <- ncol(Z)
     ncww <- ncol(W)
-    if (ncww == 0)
+    if (ncww == 0L)
         W <- NULL
     lag <- object$y$lag
     betas <- object$postMeans$betas
@@ -79,12 +96,14 @@ function (object, newdata, idVar = "id", simulate = TRUE,
     gammas <- object$postMeans$gammas
     alphas <- object$postMeans$alphas
     Dalphas <- object$postMeans$Dalphas
+    shapes <- object$postMeans$shapes
     Bs.gammas <- object$postMeans$Bs.gammas
     list.thetas <- list(betas = betas, sigma = sigma, gammas = gammas, alphas = alphas, 
-                        Dalphas = Dalphas, Bs.gammas = Bs.gammas, D = D)
+                        Dalphas = Dalphas, shapes = shapes, Bs.gammas = Bs.gammas, D = D)
     list.thetas <- list.thetas[!sapply(list.thetas, is.null)]
     thetas <- unlist(as.relistable(list.thetas))
-    environment(log.posterior.b) <- environment(S.b) <- environment(ModelMats) <- environment()
+    environment(log.posterior.b) <- environment(S.b) <- environment(logh.b) <- environment()
+    environment(hMats) <- environment(ModelMats) <- environment()
     # construct model matrices to calculate the survival functions
     obs.times.surv <- split(data.id[[timeVar]], idT)
     survMats <- survMats.last <- vector("list", n.tp)
@@ -92,6 +111,8 @@ function (object, newdata, idVar = "id", simulate = TRUE,
         survMats[[i]] <- lapply(times.to.pred[[i]], ModelMats, ii = i)
         survMats.last[[i]] <- ModelMats(last.time[i], ii = i)
     }
+    if (type != "SurvProb")
+        hazMats <- hMats(Time)
     # calculate the Empirical Bayes estimates and their (scaled) variance
     modes.b <- matrix(0, n.tp, ncz)
     invVars.b <- Vars.b <- vector("list", n.tp)
@@ -102,13 +123,15 @@ function (object, newdata, idVar = "id", simulate = TRUE,
         gammas.new <- gammas
         alphas.new <- alphas
         Dalphas.new <- Dalphas
+        shapes.new <- shapes
         Bs.gammas.new <- Bs.gammas
         ff <- function (b, y, tt, mm, i) -log.posterior.b(b, y, Mats = tt, ii = i)
-        opt <- try(optim(rep(0, ncz), ff, y = y, tt = survMats.last, i = i, 
-            method = "BFGS", hessian = TRUE), TRUE)
+        start <- if (is.null(init.b)) rep(0, ncz) else init.b[i, ]
+        opt <- try(optim(start, ff, y = y, tt = survMats.last, i = i, 
+            method = "BFGS", hessian = TRUE), silent = TRUE)
         if (inherits(opt, "try-error")) {
             gg <- function (b, y, tt, mm, i) cd(b, ff, y = y, tt = tt, i = i)
-            opt <- optim(rep(0, ncz), ff, gg, y = y, tt = survMats.last, 
+            opt <- optim(start, ff, gg, y = y, tt = survMats.last, 
                 i = i, method = "BFGS", hessian = TRUE, 
                 control = list(parscale = rep(0.1, ncz)))
         } 
@@ -132,7 +155,7 @@ function (object, newdata, idVar = "id", simulate = TRUE,
         success.rate <- matrix(FALSE, M, n.tp)
         b.old <- b.new <- modes.b
         if (n.tp == 1)
-            dim(b.old) <- dim(b.new) <- c(1, ncz)
+            dim(b.old) <- dim(b.new) <- c(1L, ncz)
         mcmc <- object$mcmc
         mcmc <- mcmc[names(mcmc) != "b"]
         if (M > nrow(mcmc$betas)) {
@@ -145,8 +168,10 @@ function (object, newdata, idVar = "id", simulate = TRUE,
         mcmc[] <- lapply(mcmc, function (x) x[samples, , drop = FALSE])
         proposed.b <- mapply(rmvt, mu = split(modes.b, row(modes.b)), Sigma = Vars.b, 
                              MoreArgs = list(n = M, df = 4), SIMPLIFY = FALSE)
+        proposed.b[] <- lapply(proposed.b, function (x) if (is.matrix(x)) x else rbind(x))
         dmvt.proposed <- mapply(dmvt, x = proposed.b, mu = split(modes.b, row(modes.b)),
-                                Sigma = Vars.b, MoreArgs = list(df = 4, log = TRUE), SIMPLIFY = FALSE)
+                                Sigma = Vars.b, MoreArgs = list(df = 4, log = TRUE), 
+                                SIMPLIFY = FALSE)
         for (m in 1:M) {
             # Step 1: extract parameter values
             betas.new <- mcmc$betas[m, ]
@@ -158,8 +183,13 @@ function (object, newdata, idVar = "id", simulate = TRUE,
                 alphas.new <- mcmc$alpha[m, ]
             if (param %in% c("td-extra", "td-both"))
                 Dalphas.new <- mcmc$Dalphas[m, ]
+            if (estimateWeightFun)
+                shapes.new <- mcmc$shapes[m, ]
             D.new <- mcmc$D[m, ]; dim(D.new) <- dim(D)
             Bs.gammas.new <- mcmc$Bs.gammas[m, ]
+            if (type != "SurvProb") {
+                logHaz <- logh.b(modes.b, hazMats)
+            }
             SS <- vector("list", n.tp)
             for (i in seq_len(n.tp)) {
                 # Step 2: simulate new random effects values
@@ -174,11 +204,18 @@ function (object, newdata, idVar = "id", simulate = TRUE,
                 if (!is.na(ind) && ind)
                     b.new[i, ] <- p.b
                 # Step 3: compute Pr(T > t_k | T > t_{k - 1}; theta.new, b.new)
-                S.last <- S.b(last.time[i], b.new[i, ], i, survMats.last[[i]])
-                S.pred <- numeric(length(times.to.pred[[i]]))
-                for (l in seq_along(S.pred))
-                    S.pred[l] <- S.b(times.to.pred[[i]][l], b.new[i, ], i, survMats[[i]][[l]])
-                SS[[i]] <- weight[i] * S.pred / S.last
+                logS.last <- S.b(last.time[i], b.new[i, ], i, survMats.last[[i]], log = TRUE)
+                logS.pred <- numeric(length(times.to.pred[[i]]))
+                for (l in seq_along(logS.pred))
+                    logS.pred[l] <- S.b(times.to.pred[[i]][l], b.new[i, ], i, survMats[[i]][[l]], log = TRUE)
+                if (type != "SurvProb") {
+                    logS.pred <- event[i] * logHaz[i] + logS.pred
+                }
+                SS[[i]] <- weight[i] * if (type != "SurvProb") {
+                    logS.pred - logS.last
+                } else {
+                    exp(logS.pred - logS.last)
+                }
             }
             b.old <- b.new
             out[[m]] <- SS
@@ -191,9 +228,9 @@ function (object, newdata, idVar = "id", simulate = TRUE,
             res[[i]] <- cbind(
                 times = times.to.pred[[i]],
                 "Mean" = rowMeans(rr, na.rm = TRUE),
-                "Median" = apply(rr, 1, median, na.rm = TRUE),
-                "Lower" = apply(rr, 1, quantile, probs = CI.levels[1], na.rm = TRUE),
-                "Upper" = apply(rr, 1, quantile, probs = CI.levels[2], na.rm = TRUE)
+                "Median" = apply(rr, 1L, median, na.rm = TRUE),
+                "Lower" = apply(rr, 1L, quantile, probs = CI.levels[1], na.rm = TRUE),
+                "Upper" = apply(rr, 1L, quantile, probs = CI.levels[2], na.rm = TRUE)
             )
             rownames(res[[i]]) <- as.character(seq_len(NROW(res[[i]])))
         }
@@ -216,7 +253,7 @@ function (object, newdata, idVar = "id", simulate = TRUE,
         obs.times = obs.times, y = y, 
         fitted.times = split(newdata.[[timeVar]], factor(newdata.[[idVar]])), 
         fitted.y = fitted.y, ry = range(object$y$y, na.rm = TRUE),
-        nameY = paste(object$Forms$formYx)[2L])
+        nameY = paste(object$Forms$formYx)[2L], modes.b = modes.b)
     if (simulate) {
         res$full.results <- out
         res$success.rate <- success.rate

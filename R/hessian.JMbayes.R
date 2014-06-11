@@ -4,7 +4,7 @@ function (object, thetas, numerDeriv = c("fd", "cd")) {
         stop("Use only with 'JMbayes' objects.\n")
     if (missing(thetas))
         thetas <- object$postMeans
-    if (!is.list(thetas) || length(thetas) != length(object$postMeans[-3]))
+    if (!is.list(thetas) || length(thetas) != length(object$postMeans[-3L]))
         stop("'thetas' must be a list with the model's parameters with the same structure as ",
             "'object$postMeans'.")    
     numerDeriv <- match.arg(numerDeriv)

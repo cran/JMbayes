@@ -119,7 +119,7 @@ function (Time, event, id, W2, W2s, P, wk, id.GK, times, b = NULL, betas = NULL,
     if (!inherits(test, "try-error") && !opt2$convergence && eigen(opt2$hessian, TRUE)$values > 0) {
         res <- relist(opt2$par, out[ind])
         out[names(res)] <- res
-        V <- solve(opt2$hessian)
+        V <- solve(nearPD(opt2$hessian))
         if (!is.null(W)) {
             iW <- 1:ncol(W)
             out$cov.gammas <- V[iW, iW]

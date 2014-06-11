@@ -11,5 +11,5 @@ function (n, mu, Sigma, df) {
     }
     X <- drop(mu) + tcrossprod(evec * rep(sqrt(pmax(ev, 0)), each = p), 
                                matrix(rnorm(n * p), n)) / rep(sqrt(rchisq(n, df)/df), each = p)
-    if (n == 1) drop(X) else t(X)
+    if (n == 1L) drop(X) else t.default(X)
 }

@@ -5,8 +5,7 @@
 \title{Anova Method for Fitted Joint Models}
 
 \description{
-  Produces marginal Wald tests or Performs a likelihood 
-	ratio test between two nested joint models.
+  Comparison of (non)nested joint models using information criteria.
 }
 
 \usage{

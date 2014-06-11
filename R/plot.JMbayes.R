@@ -39,7 +39,7 @@ function (x, which = c("trace", "autocorr", "density", "CPO", "weightFun"),
         weightFun <- x$Funs$weightFun
         if (is.null(max.t))
             max.t <- quantile(x$y$Time, 0.25)
-        xx <- seq(1e-03, max.t, len = 101)
+        xx <- seq(1e-03, max.t, length.out = 101)
         yy <- weightFun(xx, x$postMeans$shapes, max(x$y$Time))
         plot(xx, yy, type = "l", xlab = "t - s", ylab = "weights", 
              main = "Estimated Weight Function")

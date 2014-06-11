@@ -24,6 +24,11 @@ bma.combine(\dots, JMlis = NULL, weights = NULL)
 
 \author{Dimitris Rizopoulos \email{d.rizopoulos@erasmusmc.nl}}
 
+\references{
+Rizopoulos, D., Hatfield, L., Carlin, B. and Takkenberg, J. (2014). Combining dynamic predictions from joint models for longitudinal and time-to-event data using Bayesian model averaging. \emph{Journal of the American Statistical Association}. to appear.
+}
+
+
 \examples{
 \dontrun{
 # we construct the composite event indicator (transplantation or death)

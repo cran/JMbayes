@@ -1,7 +1,7 @@
 blockUpdate <-
 function (old, logPost, logProp, meanProp, sigmaProp, logPost.old, logProp.old, df = 4) {
     isMat <- is.matrix(old)
-    n <- if (isMat) nrow(old) else 1
+    n <- if (isMat) nrow(old) else 1L
     u <- runif(n)
     proposed <- rmvt(n, meanProp, sigmaProp, df = df) # change RE list of Sigmas and mus
     logPost.prop <- logPost(proposed)

@@ -28,14 +28,13 @@ shinyUI(pageWithSidebar(
             
             radioButtons('TypePlot', 'Type of Plot', 
                          c("Survival" = 'surv', "Cumulative Incidence" = "cumInc",
-                           "Stick Man" = 'stickMan', "Longitudinal" = 'longitudinal'), 
+                           "Smiley Face" = "smFace",
+                           "100 Clones" = 'stickMan', "Longitudinal" = 'longitudinal'), 
                          "surv"),
-            
-            withTags(div(class = 'row-fluid',
-                         div(class = 'span7', numericInput("time", "Target horizon time:", NULL)),
-                         div(class = 'span5', checkboxInput("extra", "Add horizon time to the last visit time", FALSE))
-            )),
-            
+            numericInput("windowTime", "Target window time:", NULL),
+
+            numericInput("time", "Target horizon time:", NULL),
+                  
             uiOutput("lastTime"),
             
             numericInput("M", "Monte Carlo samples:", 200),

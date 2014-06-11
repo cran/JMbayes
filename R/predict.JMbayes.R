@@ -69,6 +69,9 @@ function (object, newdata, type = c("Marginal", "Subject"),
         mfZ <- model.frame(TermsZ, data = newdata)
         formYx <- reformulate(attr(delete.response(TermsX), "term.labels"))
         formYz <- object$Forms$formYz
+        estimateWeightFun <- object$estimateWeightFun
+        weightFun <- object$Funs$weightFun
+        max.time <- max(object$y$Time)
         na.ind <- as.vector(attr(mfX, "na.action"))
         na.ind <- if (is.null(na.ind)) {
             rep(TRUE, nrow(newdata))
@@ -83,7 +86,7 @@ function (object, newdata, type = c("Marginal", "Subject"),
         Z <- model.matrix(formYz, mfZ)[na.ind, , drop = FALSE]
         TermsT <- object$Terms$termsT
         data.id <- newdata[!duplicated(id), ]
-        data.s <- data.id[rep(1:nrow(data.id), each = 15), ]
+        data.s <- data.id[rep(1:nrow(data.id), each = 15L), ]
         idT <- data.id[[idVar]]
         idT <- match(idT, unique(idT))
         ids <- data.s[[idVar]]
@@ -94,7 +97,7 @@ function (object, newdata, type = c("Marginal", "Subject"),
         W <- model.matrix(formT, mfT)[, -1, drop = FALSE]
         obs.times <- split(newdata[[timeVar]], id.)
         last.time <- if (is.null(last.time)) {
-            tapply(newdata[[timeVar]], id., tail, n = 1)
+            tapply(newdata[[timeVar]], id., tail, n = 1L)
         } else if (is.numeric(last.time) && length(last.time) == nrow(data.id)) {
             last.time
         } else {
@@ -103,7 +106,7 @@ function (object, newdata, type = c("Marginal", "Subject"),
         times <- object$Data$data[[timeVar]]
         times.to.pred <- if (is.null(FtTimes)) {
             lapply(last.time, 
-                function (t) seq(t, max(times) + 0.1 * mad(times), length = 25))
+                function (t) seq(t, max(times) + 0.1 * mad(times), length = 25L))
         } else {
             if (!is.list(FtTimes) || length(FtTimes) != length(last.time))
                 rep(list(FtTimes), length(last.time))
@@ -124,9 +127,11 @@ function (object, newdata, type = c("Marginal", "Subject"),
         gammas <- object$postMeans$gammas
         alphas <- object$postMeans$alphas
         Dalphas <- object$postMeans$Dalphas
+        shapes <- object$postMeans$shapes
         Bs.gammas <- object$postMeans$Bs.gammas
         list.thetas <- list(betas = betas, sigma = sigma, gammas = gammas, 
-                            alphas = alphas, Dalphas = Dalphas, Bs.gammas = Bs.gammas, D = D)
+                            alphas = alphas, Dalphas = Dalphas, shapes = shapes, 
+                            Bs.gammas = Bs.gammas, D = D)
         list.thetas <- list.thetas[!sapply(list.thetas, is.null)]
         thetas <- unlist(as.relistable(list.thetas))
         Var.thetas <- vcov(object)
@@ -158,6 +163,7 @@ function (object, newdata, type = c("Marginal", "Subject"),
             gammas.new <- gammas
             alphas.new <- alphas
             Dalphas.new <- Dalphas
+            shapes.new <- shapes
             Bs.gammas.new <- Bs.gammas
             ff <- function (b, y, tt, mm, i) 
                 -log.posterior.b(b, y, Mats = tt, ii = i)
@@ -176,7 +182,7 @@ function (object, newdata, type = c("Marginal", "Subject"),
         success.rate <- matrix(FALSE, M, n.tp)
         b.old <- b.new <- modes.b
         if (n.tp == 1)
-            dim(b.old) <- dim(b.new) <- c(1, ncz)    
+            dim(b.old) <- dim(b.new) <- c(1L, ncz)    
         mcmc <- object$mcmc
         mcmc <- mcmc[names(mcmc) != "b"]
         if (M > nrow(mcmc$betas)) {
@@ -202,6 +208,8 @@ function (object, newdata, type = c("Marginal", "Subject"),
                 alphas.new <- mcmc$alphas[m, ]
             if (param %in% c("td-extra", "td-both"))
                 Dalphas.new <- mcmc$Dalphas[m, ]
+            if (estimateWeightFun)
+                shapes.new <- mcmc$shapes[m, ]
             D.new <- mcmc$D[m, ]; dim(D.new) <- dim(D)
             Bs.gammas.new <- mcmc$Bs.gammas[m, ]
             y.new <- vector("list", n.tp)

@@ -13,10 +13,12 @@
 \usage{
 survfitJM(object, newdata, \dots)
 
-\method{survfitJM}{JMbayes}(object, newdata, idVar = "id", 
-   simulate = TRUE, survTimes = NULL, last.time = NULL, M = 200, 
+\method{survfitJM}{JMbayes}(object, newdata, 
+   type = c("SurvProb", "Density"), idVar = "id", 
+   simulate = TRUE, survTimes = NULL, last.time = NULL, M = 200L, 
    CI.levels = c(0.025, 0.975), scale = 1.6, 
-   weight = rep(1, nrow(newdata)), seed = 1, \dots)
+   weight = rep(1, nrow(newdata)), 
+   init.b = NULL, seed = 1L, \dots)
 }
 
 \arguments{
@@ -26,6 +28,7 @@ survfitJM(object, newdata, \dots)
     were used to fit the linear mixed effects model (using \code{lme()}) and the survival model (using \code{coxph()})
     that were supplied as the two first argument of \code{\link{jointModelBayes}}. In addition, this data frame should contain a variable 
     that identifies the different subjects (see also argument \code{idVar}).}
+  \item{type}{character string indicating what to compute, i.e., survival probabilities or the log conditional density.}
   \item{idVar}{the name of the variable in \code{newdata} that identifies the different subjects.}
   \item{simulate}{logical; if \code{TRUE}, a Monte Carlo approach is used to estimate survival probabilities. If \code{FALSE},
     a first order estimator is used instead. (see \bold{Details})}
@@ -39,6 +42,8 @@ survfitJM(object, newdata, \dots)
     predicted probabilities -- see \bold{Details}.}
   \item{scale}{a numeric scalar that controls the acceptance rate of the Metropolis-Hastings algorithm -- see \bold{Details}.}
   \item{weight}{a numeric vector of weights to be applied to the predictions of each subject.}
+  \item{init.b}{a numeric matrix of initial values for the random effects. These are used in the optimization procedure that finds the 
+mode of the posterior distribution described in Step 2 below.}
   \item{seed}{numeric scalar, the random seed used to produce the results.}
   \item{\dots}{additional arguments; currently none is used.}
 }

@@ -16,8 +16,8 @@ function (x, df = NULL, knots = NULL, intercept = FALSE, Boundary.knots = range(
     P1 <- (x + from) / 2
     P2 <- (x - from) / 2
     st <- outer(P2, sk) + P1
-    out <- vector("list", 15)
-    for (i in 1:15) {
+    out <- vector("list", 15L)
+    for (i in seq_len(15)) {
         out[[i]] <- wk[i] * bs(st[, i], knots = kn, Boundary.knots = Bkn, intercept = intercept)
         if (!is.null(weight.fun)) {
             ww <- weight.fun(st[, i], x, ...)

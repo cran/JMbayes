@@ -1,4 +1,4 @@
 fastSumID <-
 function (x, group) {
-    as.vector(rowsum.default(x, group, reorder = FALSE, na.rm = FALSE), mode = "numeric")
+    as.vector(x = rowsum.default(x, group, reorder = FALSE), mode = "numeric")
 }

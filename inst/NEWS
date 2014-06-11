@@ -1,3 +1,11 @@
+Changes in version: JMbayes_0.6-1
+
+  * Impovements for estimating the weight function.
+  * Faster implementation of the MCMC.
+  * First internal implementation of optimal screening frequency.
+
+---------------------------------------
+
 Changes in version: JMbayes_0.6-0
 
   * Impovements in the shiny web interface.

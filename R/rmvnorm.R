@@ -12,6 +12,6 @@ function (n, mu = NULL, Sigma) {
     X <- tcrossprod(evec * rep(sqrt(pmax(ev, 0)), each = p), matrix(rnorm(n * p), n))
     if (!is.null(mu)) 
         X <- drop(mu) + X
-    X <- if (n == 1) drop(X) else t(X)
+    X <- if (n == 1L) drop(X) else t.default(X)
     X
 }

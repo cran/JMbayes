@@ -1,7 +1,7 @@
 dataLM <-
 function (data, Tstart, idVar = "id", respVar = "y", timeVar = "time", evTimeVar = "Time", 
                     summary = c("value", "slope", "area"), tranfFun = function (x) x) {
-    if (!is.data.frame(data) || nrow(data) == 0)
+    if (!is.data.frame(data) || nrow(data) == 0L)
         stop("'data' must be a data.frame with more than one rows.\n")
     if (is.null(data[[idVar]]))
         stop("'idVar' not in 'data'.\n")

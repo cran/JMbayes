@@ -49,12 +49,6 @@ and \deqn{{\cal E}(t, \Delta t) = \bigl [ \{ T_i^* \in (t, t + \Delta t] \} \cap
 \code{\link{survfitJM}} for these two subjects, for different time windows \eqn{\Delta t} specified by argument \code{Dt}. 
 The upper limit of integral in specified by argument \code{t.max}. The integrals in the numerator and denominator 
 are approximated using a 15-point Gauss-Kronrod quadrature rule.
-
-Index \eqn{\mbox{C}_{dyn}^{\Delta t}} is in the spirit of Harrell's \eqn{c}-index, that is for the comparable 
-subjects (i.e., the ones whose observed event times can be ordered), we compare their dynamic survival
-probabilities calculated by \code{\link{survfitJM}}. As with Harrell's \eqn{c}-index, 
-\eqn{\mbox{C}_{dyn}^{\Delta t}} does not take into account censoring, and therefore is expected to mask the 
-true discriminative capability of the joint model under heavy censoring.
 }
 
 \value{

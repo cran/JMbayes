@@ -25,7 +25,7 @@ function (x, digits = max(4, getOption("digits") - 4),
         }
     }
     cat("\nEvent Process: ")
-    xx <- if (length(x$control$knots) == 1) {
+    xx <- if (length(x$control$knots) == 1L) {
         kk <- round(unique(x$control$knots[[1]]), 1)
         paste(kk[-c(1, length(kk))], collapse = ", ")
     } else {

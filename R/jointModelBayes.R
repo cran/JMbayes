@@ -14,8 +14,6 @@ function (lmeObject, survObject, timeVar,
         stop("\nnested random-effects are not allowed in lme().")
     if (!is.null(lmeObject$modelStruct$corStruct))
         warning("correlation structure in 'lmeObject' is ignored.\n")
-    if (!is.null(lmeObject$modelStruct$varStruct) && is.null(lmeObject$family))
-        warning("variance structure in 'lmeObject' is ignored.\n")
     if (!inherits(survObject, "coxph"))
         stop("\n'survObject' must inherit from class coxph.")
     if (is.null(survObject$x))
@@ -167,13 +165,13 @@ function (lmeObject, survObject, timeVar,
                 seed = 1L, diff = 2L, 
                 GQsurv = if (!estimateWeightFun) "GaussKronrod" else "GaussLegendre", 
                 GQsurv.k = if (!estimateWeightFun) 15L else 17L,
-                priorShapes = list(shape1 = dunif, shape2 = dunif, shape3 = dunif),
+                priorShapes = list(shape1 = dnorm, shape2 = dgamma, shape3 = dunif),
                 verbose = TRUE, verbose2 = FALSE)
     control <- c(control, list(...))
     namC <- names(con)
     con[(namc <- names(control))] <- control
     if (!any(namc == "n.thin"))
-        con$n.thin <- if (con$n.iter >= 2000) round(con$n.iter / 2000) else 1
+        con$n.thin <- max(1, floor(con$n.iter / 2000))
     if (length(noNms <- namc[!namc %in% namC]) > 0)
         warning("unknown names in control: ", paste(noNms, collapse = ", "))
     # construct desing matrices for longitudinal part for the hazard function
@@ -250,9 +248,8 @@ function (lmeObject, survObject, timeVar,
             if (is.null(weightFun) || !is.function(weightFun)) {
                 weightFun <- function (u, parms, t.max) {
                     num <- dnorm(x = u, mean = parms[1L], sd = parms[2L])
-                    den <- diff.default(x = pnorm(q = c(0, t.max), mean = parms[1L], 
-                                                  sd = parms[2L]))
-                    num / den
+                    den <- pnorm(q = c(0, t.max), mean = parms[1L], sd = parms[2L])
+                    num / (den[2L] - den[1L])
                 }
             }
             Funs <- c(Funs, list(weightFun = weightFun))
@@ -380,8 +377,8 @@ function (lmeObject, survObject, timeVar,
     }
     if (estimateWeightFun) {
         maxT <- max(Time) * 0.7
-        prs$priorshape1 <- c(-maxT, maxT)
-        prs$priorshape2 <- c(1e-04, 2 * maxT)
+        prs$priorshape1 <- c(0, 5)
+        prs$priorshape2 <- c(0.1, 0.1)
         prs$priorshape3 <- c(-maxT, maxT)
     }
     if (!is.null(priors)) {

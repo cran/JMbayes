@@ -166,7 +166,7 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas =
         logLik <- logLik + logPrior
     }
     if (marginal.thetas) {
-        tht <- if (useModes) object$postModes else object$postMeans[-3]
+        tht <- if (useModes) object$postModes else object$postMeans[-3L]
         lL <- logLik(object, thetas = tht)
         var.thetas <- hessian.JMbayes(object, thetas = tht)
         tht$D <- tht$D[lower.tri(tht$D, TRUE)]

@@ -19,5 +19,5 @@ function (x) {
     }
     x <- as.matrix(x)
     spec <- spectrum0.ar(x)
-    ifelse(spec == 0, 0, nrow(x) * apply(x, 2, var) / spec)
+    ifelse(spec == 0, 0, nrow(x) * apply(x, 2L, var) / spec)
 }

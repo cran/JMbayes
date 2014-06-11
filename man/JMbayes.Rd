@@ -17,8 +17,8 @@ provided.
 \tabular{ll}{
 Package: \tab JMbayes\cr
 Type: \tab Package\cr
-Version: \tab 0.6-0\cr
-Date: \tab 2014-05-01\cr
+Version: \tab 0.6-1\cr
+Date: \tab 2014-06-11\cr
 License: \tab GPL (>=2)\cr
 }
 
@@ -48,7 +48,7 @@ Maintainer: Dimitris Rizopoulos <d.rizopoulos@erasmusmc.nl>
 
 \references{
 Guo, X. and Carlin, B. (2004) Separate and joint modeling of longitudinal and event time data 
-using standard computer packages. \emph{he American Statistician} \bold{54}, 16--24.
+using standard computer packages. \emph{The American Statistician} \bold{54}, 16--24.
 
 Henderson, R., Diggle, P. and Dobson, A. (2000) Joint modelling of longitudinal measurements 
 and event time data. \emph{Biostatistics} \bold{1}, 465--480.

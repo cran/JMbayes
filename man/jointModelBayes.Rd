@@ -162,7 +162,8 @@ argument of \code{lme()}) or within-group heteroscedasticity structure (i.e., \c
 fitted to the same subjects. Moreover, it is assumed that the ordering of the subjects is the same for both 
 \code{lmeObject} and \code{survObject}, i.e., that the first line in the data frame containing the event times 
 corresponds to the first set of lines identified by the grouping variable in the data frame containing the repeated 
-measurements, and so on.
+measurements, and so on. Furthermore, the scale of the time variable (e.g., days, months, years) should be the same in both
+the \code{lmeObject} and \code{survObject} objects.
 
 4. In the \code{print} and \code{summary} generic functions for class \code{jointModel}, the estimated coefficients (and
 standard errors for the \code{summary} generic) for the event process are augmented with the element "Assoct" that 

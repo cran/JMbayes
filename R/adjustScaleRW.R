@@ -1,9 +1,9 @@
 adjustScaleRW <-
 function (scale, acceptRate, d, batch = NULL, startScale = NULL) {
-    if (d == 1) {
+    if (d == 1L) {
         low <- 0.4
         upp <- 0.5        
-    } else if (d > 1 && d < 5) {
+    } else if (d > 1L && d < 5L) {
         low <- 0.2
         upp <- 0.3
     } else {

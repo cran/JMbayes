@@ -19,7 +19,7 @@ function (object, process = c("Longitudinal", "longitudinal", "Event", "event"),
     } else {
         ni <- tapply(object$y$id, object$y$id, length)
         events <- rep(object$y$event, ni)
-        events <- ave(events, object$y$id, FUN = function (x) c(rep(0, length(x)-1), x[1]))                                            
+        events <- ave(events, object$y$id, FUN = function (x) c(rep(0, length(x) - 1L), x[1L]))                                            
         fits <- fitted(object, process = "Event", 
                        nullY = type %in% c("nullMartingale", "nullmartingale"))
         events - fits

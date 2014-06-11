@@ -11,27 +11,42 @@ function (b, y, Mats, ii) {
     log.p.b <- densRE(b, D = D.new, log = TRUE, prop = FALSE)
     MM <- Mats[[ii]]
     st <- MM$st
+    st2 <- MM$st2
     wk <- MM$wk
+    wk2 <- MM$wk2
     P <- MM$P
+    P2 <- MM$P2
     W2s <- MM$W2s
     Xs <- MM$Xs
     Zs <- MM$Zs
     Xs.extra <- MM$Xs.extra
     Zs.extra <- MM$Zs.extra
+    Xu <- MM$Xu
+    Zu <- MM$Zu
     ind <- MM$ind
     idT <- MM$idT
+    id.GK2 <- MM$id.GK2
     if (param %in% c("td-value", "td-both"))
         Ys <- transFun.value(c(Xs %*% betas.new + Zs %*% b), data.s[ids.i, ])
     if (param %in% c("td-extra", "td-both"))
         Ys.extra <- transFun.extra(c(Xs.extra %*% betas.new[indFixed] + 
                                          Zs.extra %*% b[indRandom]), data.s[ids.i, ])
-    tt <- c(switch(param,
-                   "td-value" = as.matrix(Ys) %*% alphas.new, 
-                   "td-extra" =  as.matrix(Ys.extra) %*% Dalphas.new,
-                   "td-both" = as.matrix(Ys) %*% alphas.new + 
+    if (estimateWeightFun) {
+        wFun <- wk2 * weightFun(st2, shapes.new, max.time)
+        Yu <- transFun.value(P2 * fastSumID(wFun * c(Xu %*% betas.new + Zu %*% b), id.GK2), 
+                             data.s[ids.i, ])
+    }
+    tt <- if (!estimateWeightFun) {
+        c(switch(param,
+                 "td-value" = as.matrix(Ys) %*% alphas.new, 
+                 "td-extra" =  as.matrix(Ys.extra) %*% Dalphas.new,
+                 "td-both" = as.matrix(Ys) %*% alphas.new + 
                        as.matrix(Ys.extra) %*% Dalphas.new,
-                   "shared-betasRE" = rep(sum((betas[indBetas] + b) * alphas.new), length(st)),
-                   "shared-RE" = rep(sum(b * alphas.new), length(st))))
+                 "shared-betasRE" = rep(sum((betas[indBetas] + b) * alphas.new), length(st)),
+                 "shared-RE" = rep(sum(b * alphas.new), length(st))))
+    } else {
+        c(as.matrix(Yu) %*% alphas.new)
+    }
     eta.tw <- if (!is.null(W)) {
             as.vector(W[ii, , drop = FALSE] %*% gammas.new)
     } else 0

@@ -4,7 +4,7 @@ function (x, f, ..., eps = .Machine$double.eps^0.25) {
     res <- numeric(n)
     ex <- eps * (abs(x) + eps)
     f0 <- f(x, ...)
-    for (i in 1:n) {
+    for (i in seq_len(n)) {
         x1 <- x
         x1[i] <- x[i] + ex[i]
         diff.f <- c(f(x1, ...) - f0)

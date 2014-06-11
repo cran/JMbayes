@@ -47,9 +47,9 @@ the longitudinal information recorded up to time \code{t =} \code{Tstart}.
 
 The estimate of \eqn{\mbox{AUC}(t, \Delta t)} provided by \code{aucJM()} is in the spirit of Harrell's 
 \eqn{c}-index, that is for the comparable subjects (i.e., the ones whose observed event times can be ordered), we 
-compare their dynamic survival probabilities calculated by \code{\link{survfitJM}}. As with Harrell's \eqn{c}-index, 
-\eqn{\mbox{AUC}(t, \Delta t)} does not fully take into account censoring, and therefore is expected to mask the 
-true discriminative capability of the joint model under heavy censoring.
+compare their dynamic survival probabilities calculated by \code{\link{survfitJM}}. For the subjects who due to 
+censoring we do not know if they are comparable, they contribute in the AUC with the probability that they would
+have been comparable.
 }
 
 \value{

@@ -93,8 +93,8 @@ shinyServer(function(input, output) {
                   "for producing dynamic predictions from joint models using package",
                   "<a href='http://cran.r-project.org/package=JMbayes'",
                   "style='text-decoration:none;' target='_blank'><b>JMbayes</b></a></h3>",
-                "<br /><br /><h4>Load the R workspace containing the fitted joint model using the",
-                "menus on the left to continue ...</h4>")
+                "<br /><br /><h4>Use the menus on the left to load the R workspace containing the fitted joint model",
+                "to continue ...</h4>")
         } else {
             if (is.null(input$patientFile)) {
                 dataset <- ND()
@@ -164,7 +164,7 @@ shinyServer(function(input, output) {
     })
     
     sfits2 <- reactive({
-        if (!is.na(input$time)) {
+        if (!is.na(input$time) || !is.na(input$windowTime)) {
             object <- loadObject()
             nd <- ND()
             n <- nrow(nd)
@@ -172,11 +172,11 @@ shinyServer(function(input, output) {
             sfits <- vector("list", n)
             for (i in 1:n) {
                 lastTimeData <- max(nd[1:i, object$timeVar])
-                target.time <- if (input$extra) lastTimeData + input$time else input$time
+                target.time <- if (!is.na(input$windowTime)) lastTimeData + input$windowTime else input$time
                 lt <- if (i == n && !is.na(lastTimeUser) && lastTimeUser > lastTimeData) 
                     lastTimeUser else NULL
-                if (i == n && !is.na(lastTimeUser) && lastTimeUser > lastTimeData && input$extra)
-                    target.time <- lastTimeUser + input$time
+                if (i == n && !is.na(lastTimeUser) && lastTimeUser > lastTimeData && !is.na(input$windowTime))
+                    target.time <- lastTimeUser + input$windowTime
                 if (target.time > lastTimeData)
                     sfits[[i]] <- survfitJM(object, newdata = nd[1:i, ], 
                                             survTimes = target.time, M = input$M,
@@ -200,7 +200,7 @@ shinyServer(function(input, output) {
     
     sprobs <- reactive({
         if (!is.null(input$patientFile)) {
-            if (is.na(input$time)) {
+            if (is.na(input$time) && is.na(input$windowTime)) {
                 sfits. <- sfits()
             } else {
                 sfits. <- sfits2()
@@ -232,21 +232,34 @@ shinyServer(function(input, output) {
     output$plot <- renderPlot({
         if (!is.null(input$patientFile)) {
             if (input$TypePlot != 'longitudinal') {
-                if (!is.na(input$time) && input$extra && input$TypePlot == "stickMan") {
+                if (!is.na(input$windowTime) && (input$TypePlot == "stickMan" 
+                                                          || input$TypePlot == "smFace")) {
+                    stickMan <- input$TypePlot == "stickMan"
                     sfits. <- sfits2()
                     nn <- if(is.na(input$obs)) length(sfits.) else input$obs
                     ss <- round(100 * (1 - sfits.[[nn]][["summaries"]][[1]][1, 2]))
                     draw.stick <- JMbayes:::draw.stick
-                    xx <- seq(0.2, 1.1, 0.1)
-                    yy <- seq(0.0, 1.8, 0.2)
-                    cords <- expand.grid(xx, rev(yy))
-                    cols <- rep("blue", 100)
+                    smilyface <- JMbayes:::smilyface
+                    if (stickMan) {
+                        xx <- seq(0.2, 1.1, 0.1)
+                        yy <- seq(0.0, 1.8, 0.2)
+                    } else {
+                        xx <- seq(0.3, 0.8, len = 10)
+                        yy <- seq(0.45, 1.8, len = 10)
+                    }
+                    cords <- data.matrix(expand.grid(xx, rev(yy)))
+                    cols <- rep("blue", 100) 
                     cols[seq_len(ss)] <- "red"
                     op <- par(mar = c(0, 0, 2.1, 0))
                     plot(c(.25, 1.25), c(0, 2), type = "n", xaxt = 'n', yaxt = 'n', ann = FALSE)
                     title(paste0("Risk = ", ss, "%"), cex.main = 1.7)
                     for (cc in 1:100) {
-                        draw.stick(cords[cc, 1], cords[cc, 2], linecol = cols[cc], scale = 0.2)
+                        if (stickMan) {
+                            draw.stick(cords[cc, 1], cords[cc, 2], linecol = cols[cc], scale = 0.2)
+                        } else {
+                            m <- if (cols[cc] == "blue") "happy" else "sad"
+                            smilyface(cords[cc, ], 0.01, mood = m)
+                        }
                     }
                     par(op)
                 } else {
@@ -261,7 +274,7 @@ shinyServer(function(input, output) {
                              include.y = TRUE, lwd = 2, ask = FALSE, cex = 2, main = "",
                              fun = function (s) 1 - s, ylab = "Cumulative Incidence")                
                     }
-                    if (input$extra) {
+                    if (!is.na(input$windowTime) || !is.na(input$time)) {
                         object <- loadObject()
                         nd <- ND()
                         nr <- nrow(nd)
@@ -269,9 +282,9 @@ shinyServer(function(input, output) {
                         lastTimeData <- max(nd[1:nn, object$timeVar])
                         target.time <- if (nn == nr && !is.na(lastTimeUser) && 
                                                lastTimeUser > lastTimeData) {
-                            lastTimeUser + input$time
+                            if (!is.na(input$windowTime)) lastTimeUser + input$windowTime else input$time
                         } else {
-                            lastTimeData + input$time
+                            if (!is.na(input$windowTime)) lastTimeData + input$windowTime else input$time
                         }
                         abline(v = target.time, lty = 2, col = 2, lwd = 2)
                     }
@@ -292,7 +305,7 @@ shinyServer(function(input, output) {
                 yl <- range(c(data.matrix(do.call(rbind, lfits.)[c("pred", "low", "upp")])),
                             na.rm = TRUE)
                 yl <- yl + c(-0.05, 0.05) * yl
-                target.time <- if (input$extra) {
+                target.time <- if (!is.na(input$windowTime) || !is.na(input$time)) {
                     object <- loadObject()
                     nd <- ND()
                     nr <- nrow(nd)
@@ -300,9 +313,9 @@ shinyServer(function(input, output) {
                     lastTimeData <- max(nd[1:nn, object$timeVar])
                     if (nn == nr && !is.na(lastTimeUser) && 
                                            lastTimeUser > lastTimeData) {
-                        lastTimeUser + input$time
+                        if (!is.na(input$windowTime)) lastTimeUser + input$windowTime else input$time
                     } else {
-                        lastTimeData + input$time
+                        if (!is.na(input$windowTime)) lastTimeData + input$windowTime else input$time
                     }
                 } else NA
                 print(xyplot(form, data = lfits.[[nn]], last.time = lastTime, target.time = target.time,

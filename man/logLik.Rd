@@ -18,7 +18,7 @@
 \arguments{
   \item{object}{an object inheriting from class \code{JMBayes}.}
   \item{thetas}{a list with values for the joint model's parameters. This should have the same structure as
-    the \code{coefficients} component of a fitted joint model. If missing \code{object$coefficients} is used.}
+    the \code{coefficients} component of a fitted joint model. If missing \code{object$postMeans} is used.}
   \item{b}{a numeric matrix with random effects value. This should have the same structure as
     the \code{ranef} component of a fitted joint model. If missing \code{ranef(object)} is used.}
   \item{priors}{logical, if \code{TRUE} the priors are also included in the computation.}
@@ -56,6 +56,10 @@
 }
 
 \author{Dimitris Rizopoulos \email{d.rizopoulos@erasmusmc.nl}}
+
+\references{
+Rizopoulos, D., Hatfield, L., Carlin, B. and Takkenberg, J. (2014). Combining dynamic predictions from joint models for longitudinal and time-to-event data using Bayesian model averaging. \emph{Journal of the American Statistical Association}. to appear.
+}
 
 \seealso{\code{\link{jointModelBayes}}}
 
