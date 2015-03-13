@@ -25,7 +25,8 @@ bma.combine(\dots, JMlis = NULL, weights = NULL)
 \author{Dimitris Rizopoulos \email{d.rizopoulos@erasmusmc.nl}}
 
 \references{
-Rizopoulos, D., Hatfield, L., Carlin, B. and Takkenberg, J. (2014). Combining dynamic predictions from joint models for longitudinal and time-to-event data using Bayesian model averaging. \emph{Journal of the American Statistical Association}. to appear.
+Rizopoulos, D., Hatfield, L., Carlin, B. and Takkenberg, J. (2014). Combining dynamic predictions from joint models for longitudinal and time-to-event data using Bayesian model averaging. \emph{Journal of the American Statistical Association} 
+\bold{109}, 1385--1397.
 }
 
 
@@ -44,7 +45,7 @@ lmeFit <- lme(log(serBilir) ~ ns(year, 2), data = pbc2,
 survFit <- coxph(Surv(years, status2) ~ drug, data = pbc2.id, x = TRUE)
 
 jointFit1 <- jointModelBayes(lmeFit, survFit, timeVar = "year")
-jointFit2 <- update(jointFit1, param = "shared-betasRE")
+jointFit2 <- update(jointFit1, param = "shared-RE")
 
 # we compute survival probabilities for Subject 2 with 
 # different weights

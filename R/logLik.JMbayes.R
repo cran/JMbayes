@@ -100,7 +100,7 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas =
             log.p.y.b + log.p.t.b
     }
     logLik <- if (!marginal.b) {
-        log.p.b <- densRE(b, D, log = TRUE, prop = FALSE)
+        log.p.b <- densRE(b, mu = rep(0, ncol(Z)), D, log = TRUE, prop = FALSE)
         sum(h(b) + log.p.b, na.rm = TRUE)
     } else {
         mean.b <- ranef(object)
@@ -119,7 +119,7 @@ function (object, thetas, b, priors = TRUE, marginal.b = TRUE, marginal.thetas =
                 var.b[[i]] <- solve(opt$hessian)
             }
         }
-        log.p.b <- densRE(b, D, log = TRUE, prop = FALSE)
+        log.p.b <- densRE(b, mu = rep(0, ncol(Z)), D, log = TRUE, prop = FALSE)
         log.dets.var.b <- apply(var.b, 3, function (x) determinant(x)$modulus)
         sum(0.5 * ncol(b) * log(2 * pi) + 0.5 * log.dets.var.b + 
             h(mean.b) + log.p.b, na.rm = TRUE)

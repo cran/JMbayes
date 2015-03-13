@@ -2,7 +2,7 @@ survfitJM.JMbayes <-
 function (object, newdata, type = c("SurvProb", "Density"), 
                                idVar = "id", simulate = TRUE, survTimes = NULL, 
                                last.time = NULL, M = 200L, CI.levels = c(0.025, 0.975), 
-                               scale = 1.6, weight = rep(1, nrow(newdata)), 
+                               log = FALSE, scale = 1.6, weight = rep(1, nrow(newdata)), 
                                init.b = NULL, seed = 1L, ...) {
     if (!inherits(object, "JMbayes"))
         stop("Use only with 'JMbayes' objects.\n")
@@ -52,7 +52,7 @@ function (object, newdata, type = c("SurvProb", "Density"),
     X <- model.matrix.default(formYx, mfX)
     Z <- model.matrix.default(formYz, mfZ)[na.ind, , drop = FALSE]
     TermsT <- object$Terms$termsT
-    data.id <- newdata[!duplicated(id), ]
+    data.id <- newdata[tapply(row.names(newdata), id, tail, n = 1L), ]
     data.s <- data.id[rep(1:nrow(data.id), each = object$control$GQsurv.k), ]
     idT <- data.id[[idVar]]
     idT <- match(idT, unique(idT))
@@ -64,8 +64,13 @@ function (object, newdata, type = c("SurvProb", "Density"),
         event <- SurvT[, 2]
     }
     mfT <- model.frame.default(delete.response(TermsT), data = data.id)
-    tt <- attr(delete.response(TermsT), "term.labels")
-    formT <- if (length(tt)) reformulate(tt) else reformulate("1")
+    formT <- if (!is.null(kk <- attr(TermsT, "specials")$cluster)) {
+        tt <- drop.terms(TermsT, kk - 1, keep.response = FALSE)
+        reformulate(attr(tt, "term.labels"))
+    } else {
+        tt <- attr(delete.response(TermsT), "term.labels")
+        if (length(tt)) reformulate(tt) else reformulate("1")
+    }
     W <- model.matrix.default(formT, mfT)[, -1L, drop = FALSE]
     obs.times <- split(newdata[[timeVar]][na.ind], id)
     last.time <- if (is.null(last.time)) {
@@ -204,18 +209,16 @@ function (object, newdata, type = c("SurvProb", "Density"),
                 if (!is.na(ind) && ind)
                     b.new[i, ] <- p.b
                 # Step 3: compute Pr(T > t_k | T > t_{k - 1}; theta.new, b.new)
-                logS.last <- S.b(last.time[i], b.new[i, ], i, survMats.last[[i]], log = TRUE)
+                logS.last <- S.b(last.time[i], b.new[i, ], i, survMats.last[[i]], 
+                                 log = TRUE)
                 logS.pred <- numeric(length(times.to.pred[[i]]))
                 for (l in seq_along(logS.pred))
-                    logS.pred[l] <- S.b(times.to.pred[[i]][l], b.new[i, ], i, survMats[[i]][[l]], log = TRUE)
+                    logS.pred[l] <- S.b(times.to.pred[[i]][l], b.new[i, ], i, 
+                                        survMats[[i]][[l]], log = TRUE)
                 if (type != "SurvProb") {
                     logS.pred <- event[i] * logHaz[i] + logS.pred
                 }
-                SS[[i]] <- weight[i] * if (type != "SurvProb") {
-                    logS.pred - logS.last
-                } else {
-                    exp(logS.pred - logS.last)
-                }
+                SS[[i]] <- weight[i] * if (log) logS.pred - logS.last else exp(logS.pred - logS.last)
             }
             b.old <- b.new
             out[[m]] <- SS

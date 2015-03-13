@@ -33,12 +33,38 @@ function (lmeObject, survObject, timeVar,
     # extract response & design matrix survival process
     formT <- formula(survObject)
     W <- survObject$x
-    Time <- survObject$y[, 1]
-    Time[Time < 1e-04] <- 1e-04
-    nT <- length(Time)
     if (!length(W))
         W <- NULL
-    event <- survObject$y[, 2L]
+    SurvInf <- survObject$y
+    typeSurvInf <- attr(SurvInf, "type")
+    if (typeSurvInf == "right") {
+        Time <- SurvInf[, "time"]
+        Time[Time < 1e-04] <- 1e-04
+        nT <- length(Time)
+        event <- SurvInf[, "status"]
+        LongFormat <- FALSE
+    }
+    if (typeSurvInf == "counting") {
+        if (is.null(survObject$model))
+            stop("\nplease refit the Cox model including in the ", 
+                 "call to coxph() the argument 'model = TRUE'.")
+        idT <- if (!is.null(survObject$model$cluster)) {
+            as.vector(unclass(survObject$model$cluster))
+        } else {
+            seq_len(nrow(survObject$model))
+        }
+        idT <- match(idT, unique(idT))
+        LongFormat <- length(idT) > length(unique(idT))
+        TimeL <- TimeLl <- SurvInf[, "start"]
+        TimeL <- tapply(TimeL, idT, head, n = 1)
+        anyLeftCens <- any(TimeL > 1e-07)
+        TimeR <- SurvInf[, "stop"]
+        TimeR[TimeR < 1e-04] <- 1e-04
+        Time <- tapply(TimeR, idT, tail, n = 1)
+        nT <- length(Time)
+        eventLong <- SurvInf[, "status"]
+        event  <- tapply(eventLong, idT, tail, n = 1)
+    }
     # longitudinal process
     idOrig <- lmeObject$groups[[1L]]
     id <- as.vector(unclass(idOrig))
@@ -67,16 +93,7 @@ function (lmeObject, survObject, timeVar,
     TermsZ <- attr(mfZ, "terms")
     Z <- model.matrix(formYz, mfZ)
     y.long <- model.response(mfX, "numeric")
-    long <- c(X %*% fixef(lmeObject)) + rowSums(Z * b[id, ])
-    if (param == "shared-betasRE") {
-        if (!all( colnames(Z) %in% colnames(X))) {
-            warning("\nit seems that the random effects design matrix is not a subset of the ",
-                    "fixed effects design matrix. Argument 'param' is set to 'shared-RE'.")
-            param <- "shared-RE"
-        } else {
-            indBetas <- match(colnames(Z), colnames(X))
-        }
-    }
+    long <- c(X %*% fixef(lmeObject)) + rowSums(Z * b[id, ])    
     if (densLongCheck <- is.null(densLong)) {
         if (is.null(lmeObject$family)) {
             densLong <- function (y, eta.y, scale, log = FALSE, data) {
@@ -86,43 +103,47 @@ function (lmeObject, survObject, timeVar,
             stop("you should define 'densLong' appropriately.\n")
         }
     } else {
-        if (!is.function(densLong) || !names(formals(densLong)) %in% c("y", "eta.y", "scale", "log", "data"))
+        if (!is.function(densLong) || 
+                !names(formals(densLong)) %in% c("y", "eta.y", "scale", "log", "data"))
             stop("invalid specification of densLong(); check the help file.")
     }
+    # density of the random effects
     densRE <- if (is.null(df.RE)) {
-        function (b, D = NULL, invD = NULL, log = FALSE, prop = TRUE) {
-            nn <- if (is.matrix(b)) ncol(b) else length(b)
-            dmvnorm(b, mu = numeric(nn), Sigma = D, invSigma = invD, log = log, prop = prop)
+        function (b, mu, D = NULL, invD = NULL, log = FALSE, prop = TRUE) {
+            dmvnorm(b, mu = mu, Sigma = D, invSigma = invD, log = log,
+                    prop = prop)
         }
     } else {
-        ddRE <- function (b, D = NULL, invD = NULL, log = FALSE, df, prop = TRUE) {
-            nn <- if (is.matrix(b)) ncol(b) else length(b)
-            dmvt(b, mu = numeric(nn), Sigma = D, invSigma = invD, df = df, log = log, prop = prop)
+        ddRE <- function (b, mu = NULL, D = NULL, invD = NULL, log = FALSE, df, prop = TRUE) {
+            if (is.null(mu)) {
+                nn <- if (is.matrix(b)) ncol(b) else length(b)
+                mu <- numeric(nn)
+            }
+            dmvt(b, mu = mu, Sigma = D, invSigma = invD, df = df, log = log, 
+                 prop = prop)
         }
         formals(ddRE)$"df" <- df.RE
         ddRE
     }
+    # posterior variances random effects
+    D <- lapply(pdMatrix(lmeObject$modelStruct$reStruct), "*",
+                lmeObject$sigma^2)[[1]]
+    invD <- solve(D)
+    sigma <- lmeObject$sigma
+    sigma2 <- sigma * sigma    
     if (densLongCheck && is.null(df.RE)) {
-        D <- lapply(pdMatrix(lmeObject$modelStruct$reStruct), "*",
-                    lmeObject$sigma^2)[[1]]
-        invD <- solve(D)
-        sigma2 <- lmeObject$sigma^2
         Cov.postRE <- vector("list", nY)
         for (i in seq_len(nY)) {
             Z.i <- Z[id == i, , drop = FALSE]
-            Cov.postRE[[i]] <- solve(crossprod(Z.i) / sigma2 + invD)        
+            Cov.postRE[[i]] <- solve.default(crossprod(Z.i) / sigma2 + invD)
         }
     } else {
         betas <- fixef(lmeObject)
-        D <- lapply(pdMatrix(lmeObject$modelStruct$reStruct), "*",
-                    lmeObject$sigma^2)[[1]]
-        invD <- if (is.null(df.RE)) solve(D) else (df.RE / (df.RE - 2)) * solve(D)
-        sigma <- lmeObject$sigma
         logpostRE <- function (b) {
-            eta.yi <- c(X.i %*% betas) + c(Z.i %*% b)
-            dY <- densLong(y.i, eta.yi, scale = sigma, log = TRUE, data[id.i, ])
-            dRE <- densRE(b, invD = invD, log = TRUE)
-            -(sum(dY, na.rm = TRUE) + dRE)
+            eta.yi <- drop(X.i %*% betas) + drop(Z.i %*% b)
+            dY <- densLong(y.i, eta.yi, scale = sigma, log = TRUE, data[id.i, , drop = FALSE])
+            dRE <- densRE(b, mu = rep(0, ncol(Z.i)), invD = invD, log = TRUE)
+            - sum(dY, dRE, na.rm = TRUE)
         }
         Cov.postRE <- vector("list", nY)
         for (i in seq_len(nY)) {
@@ -134,6 +155,36 @@ function (lmeObject, survObject, timeVar,
             b[i, ] <- opt$par
             Cov.postRE[[i]] <- solve(opt$hessian)
         }
+    }
+    # check parameterization and hierarchical centering
+    check_names <- all(colnames(Z) %in% colnames(X))
+    if (check_names) {
+        performHC <- max(diag(D)) > sigma2 / nY && is.null(df.RE)
+        has_interceptX <- attr(TermsX, "intercept")
+        has_interceptZ <- attr(TermsZ, "intercept")
+        performHC <- performHC && has_interceptX && (has_interceptX == has_interceptZ)
+        indBetas <- if (performHC) {
+            terms.labs_X <- attr(TermsX, "term.labels")
+            terms.labs_Z <- attr(TermsZ, "term.labels")
+            # check for time-varying covariates
+            timeTerms <- grep(timeVar, colnames(X), fixed = TRUE)
+            which_td <- unname(which(apply(X, 2, check_td, id = id)))
+            all_TDterms <- unique(c(timeTerms, which_td))
+            baseline <- seq_len(ncol(X))[-all_TDterms]
+            #factorsX <- attr(TermsX, "factors")           
+            c(list(baseline), lapply(colnames(Z)[-1L], find_positions, 
+                                     nams2 = colnames(X)))
+        }
+    } else {
+        performHC <- FALSE
+        if (param == "shared-betasRE") {
+            warning("\nit seems that the random effects design matrix is not a subset of the ",
+                    "fixed effects design matrix. Argument 'param' is set to 'shared-RE'.")
+            param <- "shared-RE"
+        }
+    }
+    if (check_names && param == "shared-betasRE") {
+        indBetasRE <- match(colnames(Z), colnames(X))
     }
     # transormation functions
     if (is.null(transFun)) {
@@ -160,6 +211,7 @@ function (lmeObject, survObject, timeVar,
     # control values
     con <- list(adapt = FALSE, n.iter = 20000L, n.burnin = 3000L, n.thin = 10L, 
                 n.adapt = 3000L, keepRE = TRUE, n.batch = 100L, priorVar = 100, 
+                performHC = performHC, robust_baseHaz = FALSE, rescale_Bs.gammas = TRUE,
                 knots = NULL, ObsTimes.knots = TRUE, 
                 lng.in.kn = if (baseHaz == "P-splines") 15L else 5L, ordSpline = 4L, 
                 seed = 1L, diff = 2L, 
@@ -205,16 +257,36 @@ function (lmeObject, survObject, timeVar,
         long.extra <- NULL
     if (param == "td-extra")
         long <- NULL
+    if (performHC) {
+        data.idHC <- data.id
+        data.idHC[[timeVar]] <- 1
+        mfHC <- model.frame(TermsX, data = data.idHC)
+        which.timeVar <- grep(timeVar, names(mfHC), fixed = TRUE)
+        mfHC[which.timeVar] <- lapply(mfHC[which.timeVar], function (x) { x[] <- 1; x })
+        XXtime <- model.matrix(formYx, mfHC)
+    }
     # response vectors and design matrices
     y <- list(y = y.long, Time = Time, event = event, lag = lag, df.RE = df.RE, id = id,
-              indBetas = if (param == "shared-betasRE") indBetas)
+              indBetas = if (check_names) indBetas, 
+              indBetasRE = if (param == "shared-betasRE") indBetasRE, 
+              LongFormat = LongFormat)
+    if (typeSurvInf == "counting")
+        y <- c(y, list(TimeL = TimeL, TimeR = TimeR, eventLong = eventLong, idT = idT,
+                       typeSurvInf = typeSurvInf, anyLeftCens = anyLeftCens))
     x <- list(X = X, Z = Z, W = W)
+    if (typeSurvInf == "counting") {
+        wind <- tapply(idT, idT, function (x) rep(c(FALSE, TRUE), c(length(x) - 1, 1)))
+        x$W <- x$W[unlist(wind, use.names = FALSE), , drop = FALSE]
+    }
     x <- switch(param,
                 "td-value" = c(x, list(Xtime = Xtime, Ztime = Ztime)),
                 "td-extra" = c(x, list(Xtime.extra = Xtime.extra, Ztime.extra = Ztime.extra)),
                 "td-both" = c(x, list(Xtime = Xtime, Ztime = Ztime,
                                       Xtime.extra = Xtime.extra, Ztime.extra = Ztime.extra)),
                 "shared-betasRE" =, "shared-RE" =  x)
+    if (performHC) {
+        x <- c(x, list(XXtime = XXtime))
+    }
     # construct desing matrices for longitudinal part for the survival function
     GQsurv <- if (con$GQsurv == "GaussKronrod") gaussKronrod() else gaussLegendre(con$GQsurv.k)
     wk <- GQsurv$wk
@@ -285,7 +357,21 @@ function (lmeObject, survObject, timeVar,
         stop("\nsome of the knots of the B-splines basis are set outside the range",
              "\nof the observed event times.")
     W2s <- splineDesign(rr, c(t(st)), ord = con$ordSpline)
-    x <- c(x, list(W2 = W2, W2s = W2s))
+    if (typeSurvInf == "counting" && LongFormat) {
+        TDind <- mapply(findInterval, x = split(st, row(st)), vec = split(TimeLl, idT), 
+                        SIMPLIFY = FALSE)
+        Ws <- do.call(rbind, mapply(function (x, i) x[i, , drop = FALSE], i = TDind,
+                                    x = lapply(split(W, idT), matrix, ncol = ncol(W)), 
+                                    SIMPLIFY = FALSE))
+        if (anyLeftCens) {
+            PL <- TimeL / 2
+            stL <- outer(PL, sk + 1)
+            W2Ls <- splineDesign(rr, c(t(stL)), ord = con$ordSpline)
+        }
+    } else {
+        Ws <- W2Ls <- NULL
+    }
+    x <- c(x, list(Ws = Ws, W2 = W2, W2s = W2s))
     # All data
     Data <- list(data = data, data.id = data.id, data.s = data.id2, 
                  data.u = if (estimateWeightFun) data.id3)
@@ -297,7 +383,7 @@ function (lmeObject, survObject, timeVar,
                            D = D, invD = invD)
     initSurv <- initSurvival(Time, event, id, W2, W2s, P, wk, id.GK, times, 
                              b, initial.values$betas, y$indBetas, 
-                             W, baseHaz, con$diff, Data, param, 
+                             x$W, baseHaz, con$diff, Data, param, 
                              if (param %in% c("td-value", "td-both")) long else NULL, 
                              long.extra, transFun.value, transFun.extra, 
                              vl = if (param %in% c("td-value", "td-both")) 
@@ -319,6 +405,7 @@ function (lmeObject, survObject, timeVar,
     initial.values$gammas <- initSurv$gammas
     initial.values$Bs.gammas <- initSurv$Bs.gammas
     initial.values$tauBs <- initSurv$tauBs
+    initial.values$deltaBs <- 0.005
     initial.values$alphas <- initSurv$alphas
     initial.values$Dalphas <- initSurv$Dalphas
     if (estimateWeightFun) {
@@ -359,9 +446,14 @@ function (lmeObject, survObject, timeVar,
                 priorMean.Bs.gammas = numeric(ncol(W2)), 
                 priorTau.Bs.gammas = diag(10 / con$priorVar, ncol(W2)))
     if (baseHaz == "P-splines") {
-        prs$priorTau.Bs.gammas <- crossprod(diff(diag(ncol(W2)), differences = con$diff))
+        DD <- diag(ncol(W2))
+        prs$priorTau.Bs.gammas <- crossprod(diff(DD, differences = con$diff)) + 1e-06 * DD
+        #prs$priorA.tauBs <- 1
+        #prs$priorB.tauBs <- 0.005
         prs$priorA.tauBs <- 1
-        prs$priorB.tauBs <- 0.005
+        prs$priorB.tauBs <- if (con$robust_baseHaz) 1 else 0.005
+        prs$priorA.deltaBs <- 1e-02
+        prs$priorB.deltaBs <- 1e-02
     }
     if (!is.null(W)) {
         prs$priorMean.gammas <- numeric(ncol(W))

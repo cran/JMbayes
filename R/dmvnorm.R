@@ -2,7 +2,14 @@ dmvnorm <-
 function (x, mu, Sigma = NULL, invSigma = NULL, log = FALSE, prop = TRUE) {
     if (!is.matrix(x))
         x <- rbind(x)
-    p <- length(mu)
+    if (is.matrix(mu)) {
+        if (nrow(mu) != nrow(x))
+            stop("incorrect dimensions for 'mu'.")
+        p <- ncol(mu)
+    } else {
+        p <- length(mu)
+        mu <- rep(mu, each = nrow(x))
+    }
     if (is.null(Sigma) && is.null(invSigma))
         stop("'Sigma' or 'invSigma' must be given.")
     if (!is.null(Sigma)) {
@@ -21,7 +28,7 @@ function (x, mu, Sigma = NULL, invSigma = NULL, log = FALSE, prop = TRUE) {
         if (!prop)
             logdetSigma <- - determinant(as.matrix(invSigma))$modulus
     }
-    ss <- x - rep(mu, each = nrow(x))
+    ss <- x - mu
     quad <- 0.5 * rowSums((ss %*% invSigma) * ss)
     if (!prop)
         fact <- - 0.5 * (p * log(2 * pi) + logdetSigma)

@@ -74,10 +74,14 @@ function (x, estimator = c("both", "mean", "median"),
             lty <- lty[-exc]
             lwd <- lwd[-exc]
         }
-        ylim <- if (is.null(fun)) c(0, 1) else { rr <- r[, -1, drop = FALSE]; range(rr[is.finite(rr)]) } 
+        ylim <- if (is.null(fun)) c(0, 1) else {
+            rr <- r[, -1, drop = FALSE]
+            range(rr[is.finite(rr)])
+        } 
         if (!include.y) {
-            matplot(r[, 1], r[, -1, drop = FALSE], type = "l", col = col, lwd = lwd, lty = lty, ylim = ylim, 
-                main = main[ii], xlab = xlab[i], ylab = ylab[i], ...)
+            matplot(r[, 1], r[, -1, drop = FALSE], type = "l", col = col, lwd = lwd, 
+                    lty = lty, ylim = ylim, main = main[ii], xlab = xlab[i], 
+                    ylab = ylab[i], ...)
             if (fill.area) {
                 polygon(c(r[, 1], rev(r[, 1])), 
                     c(r[, ncol(r) - 1], rev(r[, ncol(r)])), 

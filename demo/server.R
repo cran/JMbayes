@@ -51,6 +51,7 @@ shinyServer(function(input, output) {
             } else {
                 d <- dataObject()
                 indF <- sapply(d, is.factor)
+                namsFactors <- names(d[indF])
                 levelsF <- lapply(d[indF], levels) 
                 tt <- try(inData <- read.csv(input$patientFile$datapath, sep = input$sep, 
                                              quote=input$quote, colClasses = sapply(d, class),
@@ -58,7 +59,8 @@ shinyServer(function(input, output) {
                 if (!inherits(tt, "try-error")) {
                     inData <- cbind(inData, id = rep(1, nrow(inData)))
                     f <- function (f, l) {levels(f) <- l; f}
-                    inData[indF] <- mapply(f, inData[indF], levelsF, SIMPLIFY = FALSE)
+                    inData[namsFactors] <- mapply(f, inData[namsFactors], 
+                                                  levelsF[namsFactors], SIMPLIFY = FALSE)
                     inData
                 }
             }
@@ -94,12 +96,12 @@ shinyServer(function(input, output) {
                   "<a href='http://cran.r-project.org/package=JMbayes'",
                   "style='text-decoration:none;' target='_blank'><b>JMbayes</b></a></h3>",
                 "<br /><br /><h4>Use the menus on the left to load the R workspace containing the fitted joint model",
-                "to continue ...</h4>")
+                "to continue ... (for further details & instructions check the 'Help' tab above)</h4>")
         } else {
             if (is.null(input$patientFile)) {
                 dataset <- ND()
                 classes <- sapply(dataset, class)
-                classes[classes == "numeric"] <- "a numeric (continuous) variable."
+                classes[classes == "numeric" | classes == "integer"] <- "a numeric (continuous) variable."
                 ind <- classes == "factor"
                 classes[ind] <- paste("a factor (categorical) variable, with levels", 
                     sapply(dataset[ind], function (x) paste0("<i>", levels(x), "</i>", collapse = ", ")))
@@ -124,6 +126,113 @@ shinyServer(function(input, output) {
     output$message2 <- renderPrint({
         if (is.null(input$RDfile) || is.null(input$patientFile))
             cat("<br />No subject data have been loaded yet ...")
+    })
+    
+    output$help <- renderPrint({
+        cat("<br /><h3>Dynamic Predictions in a Nutshell</h3>")
+        cat("<br />The dynamic predictions calculated by this app are applicable in the ", 
+            "context of follow-up studies where the aim is to utilize longitudinally ", 
+            "measured outcomes to predict future values of these outcomes or future ", 
+            "events for the sample units. For example, a cohort of patients is followed-up ",
+            "in time and it is of interest to predict events, such as relapse of disease ",
+            "or death using longitudinally measured biomarkers.", "These predictions ", 
+            "are derived under the framework of joint models for longitudinal and ", 
+            "time-to-event data, and more technical details can be found in the ", 
+            "References.")
+        #############
+        cat("<br /><br /><h3>How this App Works</h3>")
+        cat("<br />On the left hand side there are (or the will appear) a number of ", 
+            "control arguments.", "In the main panel there are three tabs, named, <span style='color:blue'>'Data'</span>,
+            <span style='color:blue'>'Event-free Probabilities'</span> and <span style='color:blue'>'Plots'</span>, in which the results appear.")
+        p1 <- paste("Load the R workspace that contains the joint model(s) based on which", 
+                    "you would like to calculated the predictions.")
+        p21 <- paste("Load the comma separated file (.csv) containing the available data", 
+                     "including both the longitudinally measured outcomes and potentially",
+                     "other baseline covariates, of the sample unit (e.g., patient) for", 
+                     "which predictions are to be calculated.")
+        p22 <- paste("The names of the variables/columns in this file and the coding of", 
+                     "the categorical variables must be the same as in the database used", 
+                     "to fit the joint model. More exact information on how this file", 
+                     "should look like appears in the <span style='color:blue'>'Data'</span> tab after you load the R", 
+                     "workspace in 'Step I'.")
+        p23 <- paste("Depending on the locale of your machine it may be required to tweak", 
+                     "the options <span style='color:red'>'Separator'</span>,", 
+                     "<span style='color:red'>'Decimal'</span> and <span style='color:red'>'Quote'</span>.")
+        p31 <- paste("After the R workspace has been loaded a select dialog box appears", 
+                     "on the left hand side that allows the user to <span style='color:red'>choose the joint", 
+                     "model</span> contained in the workspace based on which the predictions", 
+                     "will be calculated. In addition, in the main panel, under the", 
+                     "<span style='color:blue'>'Data'</span> tab, an example of the .csv file that the user should load", 
+                     "appears, that gives the names of the columns that should be used", 
+                     "and the coding for categorical variables.")
+        p32 <- paste("After the user has loaded the data of the 'new' sample unit its", 
+                     "data are depicted under the <span style='color:blue'>'Data'</span> tab.", 
+                     "The calculation of the", 
+                     "prediction is initiated after the user selects either the", 
+                     "<span style='color:blue'>'Event-free Probabilities'</span> or", 
+                     "<span style='color:blue'>'Plot'</span> tab. In addition, in the left", 
+                     "hand side a slider appears, named", 
+                     "<span style='color:red'>'Number of observations to use in prediction'</span>,", 
+                     "which selects the number of measurements", 
+                     "used in the prediction. By pressing the small play button at the", 
+                     "end of this slider the dynamic predictions are depicted in the", 
+                     "'Plot' tab.")
+        p33 <- paste("The <span style='color:red'>'Type of Plot'</span> options on the left control the type of appearing",
+                     "in the 'Plot' tab. The default option <span style='color:#FE2EF7'>'Survival'</span> depicts survival", 
+                     "probabilities (aka event-free probabilities) for the event of", 
+                     "interest based on the avalable longitudinal measurements.", 
+                     "Similarly, option <span style='color:#FE2EF7'>'Cumulative Incidence'</span> depicts cumulative", 
+                     "incidence probabilities for the event of interest. Options", 
+                     "<span style='color:#FE2EF7'>'Smiley Faces'</span> and", 
+                     "<span style='color:#FE2EF7'>'100 Clones'</span> are used in conjuction with the", 
+                     "<span style='color:red'>'Target Window Time'</span> option below and depict, in a simple manner, the risk that the event",
+                     "will occur within the time interval <i>(t, t + Dt]</i>, where <i>t</i> denotes",
+                     "the time of the last available longitudinal measurement (specified", 
+                     "according to the slider 'Number of observations to use in prediction')", 
+                     "and <i>Dt</i> is given in the 'Target Window Time'. The idea is that if at",
+                     "the particular time point t we would create 100 clones of the subject at hand", 
+                     "the 'Smiley Faces' and '100 Clones' plots show how many of them would die within the", 
+                     "time interval from <i>t</i> up to <i>t + Dt</i>.",
+                     "Finally, option <span style='color:#FE2EF7'>'Longitudinal'</span>", 
+                     "can be selected to depict predictions for the longitudinal outcome based", 
+                     "on the recored information.")
+        p34 <- paste("The field <span style='color:red'>'Target horizon time'</span> specifies a horizon time point at", 
+                     "which predictions are of interest. For example, 10-year survival probability.")
+        p35 <- paste("The field <span style='color:red'>'Monte Carlo samples'</span> specifies the number of Monte Carlo", 
+                     "samples used in calculating the predictions-more details can be found", 
+                     "in the References.")
+        cat("<dl><dt>Step I</dt>", "<dd>- ", p1, "</dd>", "<dd>  </dd>",
+            "<dt>Step II</dt>", "<dd>- ", p21, "</dd>", "<dd>- ", p22, "</dd>", "<dd>- ", p23, "</dd>", "<dd>  </dd>",
+            "<dt>Options & Widgets</dt>", "<dd>- ", p31, "</dd>", "<dd>- ", p32, "</dd>", 
+            "<dd>- ", p33, "</dd>", "<dd>- ", p34, "</dd>", "<dd>- ", p35, "</dd>", "</dl>")
+        #############
+        cat("<br /><h3>References</h3>")
+        p1 <- paste0("<li>", "Yu M, Taylor J, Sandler H. (2008). ",
+                     "Individualized prediction in prostate cancer studies using a joint longitudinal-survival-cure model. ",
+                     "<a href='http://dx.doi.org/10.1198/016214507000000400' ", 
+                     "style='text-decoration:none;' target='_blank'>", 
+                     "<i>Journal of the American Statistical Association</i> <b> 103</b>, 178-187.</a>",
+                     "</li>")
+        p2 <- paste0("<li>", "Rizopoulos D. (2011). Dynamic predictions and prospective ",
+                     "accuracy in joint models for longitudinal and time-to-event data. ",
+                     "<a href='http://dx.doi.org/10.1111/j.1541-0420.2010.01546.x' ", 
+                     "style='text-decoration:none;' target='_blank'>", 
+                     "<i>Biometrics</i> <b> 67</b>, 819-829.</a>",
+                     "</li>")
+        p3 <- paste0("<li>", "Rizopoulos D. (2012). ",
+                     "<a href='http://www.crcpress.com/product/isbn/9781439872864' ", 
+                     "style='text-decoration:none;' target='_blank'>", 
+                     "<i>Joint Models for Longitudinal and Time-to-Event Data, with Applications in R</i></a>.",
+                     " Boca Raton: Chapman & Hall/CRC.",
+                     "</li>")
+        p4 <- paste0("<li>", "Taylor J, Park Y, Ankerst D, Proust-Lima C, ", 
+                     "Williams S, Kestin L, Bae K, Pickles T, Sandler H. (2013). ",
+                     "Real-time individual predictions of prostate cancer recurrence", 
+                     "using joint models. ", "<a href='http://dx.doi.org/10.1111/j.1541-0420.2012.01823.x' ", 
+                     "style='text-decoration:none;' target='_blank'>", 
+                     "<i>Biometrics</i> <b> 69</b>, 206-213.</a>",
+                     "</li>")
+        cat("<ol>", p1, p2, p3, p4, "</ol> ")
     })
     
     sfits <- reactive({

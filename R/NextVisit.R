@@ -1,6 +1,6 @@
 NextVisit <-
 function (object, newdata, Tstart, Dt, tht, by = Dt/2, K = 10,
-                       idVar = "id", betas = NULL, 
+                       idVar = "id", onlyData = FALSE, betas = NULL, 
                        sigma = NULL, b = NULL, fun = NULL, simulate = FALSE, M = 300, 
                        seed = 123L) {
     if (!inherits(object, "JMbayes"))
@@ -10,8 +10,6 @@ function (object, newdata, Tstart, Dt, tht, by = Dt/2, K = 10,
     TermsT <- object$Terms$termsT
     TimeVar <- all.vars(TermsT)[1L]
     Time <- newdata[[TimeVar]]
-    #timeSeq <- seq(Tstart, max(Time), by = by)[-1L]
-    #timeSeq <- timeSeq[seq_len(K)]
     timeSeq <- Tstart + 0.5 * Dt
     ntimeSeq <- length(timeSeq)
     newdata2 <- newdata[Time > Tstart & times <= Tstart, ]
@@ -22,7 +20,7 @@ function (object, newdata, Tstart, Dt, tht, by = Dt/2, K = 10,
     pi.u.t <- sapply(sfit$summaries, "[", 2L)
     ind <- pi.u.t <= tht
     data.i <- split(newdata2, newdata2[[idVar]])
-    data.i <- data.i[sapply(data.i, nrow) > 0L]
+    data.i <- data.i2 <- data.i[sapply(data.i, nrow) > 0L]
     data.i <- data.i[ind]
     if (any(ind)) {
         newdata2Orig <- do.call(rbind, data.i)
@@ -57,7 +55,7 @@ function (object, newdata, Tstart, Dt, tht, by = Dt/2, K = 10,
         for (k in seq_len(K)) {
             betas.k <- betas[rand[k], ]
             sigma.k <- sigma[rand[k], ]
-            data.i. <- mapply(function (d, bi) {
+            data.i. <- data.i2[ind] <- mapply(function (d, bi) {
                 last.row <- tail(d, n = 1L)[rep(1L, ntimeSeq), ]
                 last.row[[timeVar]] <- timeSeq
                 d <- rbind(d, last.row)
@@ -73,6 +71,12 @@ function (object, newdata, Tstart, Dt, tht, by = Dt/2, K = 10,
             newdata2 <- do.call(rbind, data.i.)
             Time <- newdata2[[TimeVar]]
             newdata2 <- newdata2[Time > Tstart + 0.50001 * Dt, ]
+            if (onlyData) {
+                newdata2 <- do.call(rbind, data.i2)
+                Time <- newdata2[[TimeVar]]
+                newdata2 <- newdata2[Time > Tstart + 0.50001 * Dt, ]
+                return(newdata2)
+            }
             condDens[, k] <- if (nrow(newdata2)) {
                 ss <- survfitJM(object, newdata = newdata2, type = "Density",
                                 idVar = idVar, simulate = simulate, M = M,
@@ -86,5 +90,7 @@ function (object, newdata, Tstart, Dt, tht, by = Dt/2, K = 10,
         #cvDCLExtra <- sum(-log(rowMeans(condDens)))
         cvDCLExtra <- sum(-log(apply(condDens, 1, median)))
         c(cvDCLOrig = cvDCLOrig, cvDCLExtra = cvDCLExtra, n = nn)
-    } else c(NA, NA, NA)
+    } else {
+        if (onlyData) newdata2 else c(NA, NA, NA)
+    }
 }

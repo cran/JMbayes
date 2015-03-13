@@ -28,7 +28,7 @@ shinyUI(pageWithSidebar(
             
             radioButtons('TypePlot', 'Type of Plot', 
                          c("Survival" = 'surv', "Cumulative Incidence" = "cumInc",
-                           "Smiley Face" = "smFace",
+                           "Smiley Faces" = "smFace",
                            "100 Clones" = 'stickMan', "Longitudinal" = 'longitudinal'), 
                          "surv"),
             numericInput("windowTime", "Target window time:", NULL),
@@ -50,7 +50,8 @@ shinyUI(pageWithSidebar(
         tabsetPanel(
             tabPanel("Data", tableOutput('contents'), uiOutput("message")),
             tabPanel("Event-free Probabilities", tableOutput('survprobs'), uiOutput("message2")),
-            tabPanel("Plot", plotOutput('plot'))
+            tabPanel("Plot", plotOutput('plot')),
+            tabPanel("Help", htmlOutput('help'))
         )
     )
 ))

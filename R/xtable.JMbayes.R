@@ -63,7 +63,7 @@ function (x, caption = NULL, label = NULL, align = NULL, digits = NULL,
         align <- "llrrrr"
         Dat.surv
     }  
-    if (!require("xtable")) 
+    if (!requireNamespace("xtable", quietly = TRUE)) 
         stop("'xtable' is required.\n")
     print(xtable(Dat, caption = caption, label = label, 
         align = align, digits = digits, display = display), 

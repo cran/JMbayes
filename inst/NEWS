@@ -1,3 +1,14 @@
+Changes in version: JMbayes_0.7-0
+
+  * New function rocJM() calculates dynamic sensitivity and specificity and the plot produce the ROC curve plot.
+  * The new function cvDCL() calculates an estimate of the dynamic cross-entropy.
+  * The new function dynInfo() calculates the dynamic Kullaback-Leibler information provided by an extra longitudinal measurement.
+  * Function jointModelBayes() can now handle survival submodels with exogenous time-varying covariates.
+  * The MCMC algorithm implements now hierarchical centering for the parameters of mixed effects model.
+  * Several improvements in the shiny web app for calculating dynamic predictions.
+
+---------------------------------------
+
 Changes in version: JMbayes_0.6-1
 
   * Impovements for estimating the weight function.

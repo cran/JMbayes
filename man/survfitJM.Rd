@@ -16,7 +16,7 @@ survfitJM(object, newdata, \dots)
 \method{survfitJM}{JMbayes}(object, newdata, 
    type = c("SurvProb", "Density"), idVar = "id", 
    simulate = TRUE, survTimes = NULL, last.time = NULL, M = 200L, 
-   CI.levels = c(0.025, 0.975), scale = 1.6, 
+   CI.levels = c(0.025, 0.975), log = FALSE, scale = 1.6, 
    weight = rep(1, nrow(newdata)), 
    init.b = NULL, seed = 1L, \dots)
 }
@@ -40,6 +40,7 @@ survfitJM(object, newdata, \dots)
   \item{M}{integer denoting how many Monte Carlo samples to use -- see \bold{Details}.}
   \item{CI.levels}{a numeric vector of length two that specifies which quantiles to use for the calculation of confidence interval for the 
     predicted probabilities -- see \bold{Details}.}
+\item{log}{logical, should results be returned in the log scale.}
   \item{scale}{a numeric scalar that controls the acceptance rate of the Metropolis-Hastings algorithm -- see \bold{Details}.}
   \item{weight}{a numeric vector of weights to be applied to the predictions of each subject.}
   \item{init.b}{a numeric matrix of initial values for the random effects. These are used in the optimization procedure that finds the 
@@ -126,9 +127,9 @@ for (i in 1:nrow(ND)) {
 survPreds
 
 # run Shiny app
-library("shiny")
-runApp(file.path(.Library, "JMbayes/demo"))
-
+if (require("shiny")) {
+    shiny::runApp(file.path(.Library, "JMbayes/demo"))
+}
 }
 }
 

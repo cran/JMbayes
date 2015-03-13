@@ -11,12 +11,7 @@ function (Time, event, id, W2, W2s, P, wk, id.GK, times, b = NULL, betas = NULL,
         Wdat <- as.data.frame(W)
         if (!is.null(W))
             DF <- cbind(DF, Wdat)
-        if (param == "shared-betasRE") {
-            betasRE <- rep(betas[indBetas], each = nrow(b)) + b
-            DF <- cbind(DF, betasRE)
-        } else {
-            DF <- cbind(DF, b)
-        }
+        DF <- cbind(DF, b)
         tdCox <- coxph(Surv(Time, event) ~ ., data = DF)        
     } else {
         DF <- data.frame(id = id, Time = Time[id], event = event[id])

@@ -1,5 +1,7 @@
 logh.b <-
 function (b, mats) {
+    if (!is.matrix(b))
+        b <- rbind(b)
     W2 <- mats$W2
     Xtime <- mats$Xtime
     Ztime <- mats$Ztime
@@ -18,7 +20,7 @@ function (b, mats) {
         Y <- transFun.value(c(Xtime %*% betas.new) + rowSums(Ztime * b), data)
     if (param %in% c("td-extra", "td-both"))
         Y.extra <- transFun.extra(c(Xtime.extra %*% betas.new[indFixed]) + 
-                                    rowSums(Ztime.extra * b[indRandom, , drop = FALSE]), 
+                                    rowSums(Ztime.extra * b[, indRandom, drop = FALSE]), 
                                   data)
     if (estimateWeightFun) {
         wFun <- wk * weightFun(st, shapes.new, max.time)

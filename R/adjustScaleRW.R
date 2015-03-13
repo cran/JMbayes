@@ -10,8 +10,8 @@ function (scale, acceptRate, d, batch = NULL, startScale = NULL) {
         low <- 0.15
         upp <- 0.3
     }
-    if (acceptRate >= low && acceptRate <= upp)
-        return(scale)
+    #if (acceptRate >= low && acceptRate <= upp)
+    #    return(scale)
     qq <- if (is.null(batch)) 0.3 else min(0.1, 1/sqrt(batch))
     if (acceptRate > upp)
         scale <- scale * (1 + qq)
@@ -19,5 +19,5 @@ function (scale, acceptRate, d, batch = NULL, startScale = NULL) {
         scale <- scale * (1 - qq)
     if (!is.null(startScale))
         scale <- pmax(pmin(scale, startScale*1.25), startScale*0.75)
-    scale
+    min(max(scale, 1e-04), 5.0)
 }

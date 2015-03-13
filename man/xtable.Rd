@@ -40,13 +40,14 @@
 
 \examples{
 \dontrun{
-require(xtable)
 prothro$t0 <- as.numeric(prothro$time == 0)
 lmeFit <- lme(pro ~ treat * (time + t0), random = ~ time | id, data = prothro)
 survFit <- coxph(Surv(Time, death) ~ treat, data = prothros, x = TRUE)
 jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "time")
-
-xtable(jointFit, math.style.negative = TRUE)
+    
+if (require("xtable")) {
+    xtable:::xtable(jointFit, math.style.negative = TRUE)
+}
 }
 }
 

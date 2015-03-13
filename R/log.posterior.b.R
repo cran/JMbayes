@@ -8,7 +8,7 @@ function (b, y, Mats, ii) {
     mu.y <- as.vector(X.i %*% betas.new + Z.i %*% b)
     logY <- densLong(y[id.i], mu.y, sigma.new, log = TRUE, data = newdata[id.i, ])
     log.p.yb <- sum(logY)
-    log.p.b <- densRE(b, D = D.new, log = TRUE, prop = FALSE)
+    log.p.b <- densRE(b, mu = rep(0, ncol(Z.i)), D = D.new, log = TRUE, prop = FALSE)
     MM <- Mats[[ii]]
     st <- MM$st
     st2 <- MM$st2

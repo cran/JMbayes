@@ -1,19 +1,27 @@
 \name{aucJM}
 
 \alias{aucJM}
+\alias{rocJM}
 \alias{aucJM.JMbayes}
+\alias{rocJM.JMbayes}
 
-\title{Time-Dependent AUCs for Joint Models}
+
+\title{Time-Dependent ROCs and AUCs for Joint Models}
 
 \description{ 
   Using the available longitudinal information up to a starting time point, this function computes an estimate 
-  of the prediction error of survival at a horizon time point based on joint models.
+  of the ROC and the AUC at a horizon time point based on joint models.
 }
 
 \usage{
 aucJM(object, newdata, Tstart, \dots)
 
 \method{aucJM}{JMbayes}(object, newdata, Tstart, Thoriz = NULL, 
+    Dt = NULL, idVar = "id", simulate = FALSE, M = 100, \dots)
+
+rocJM(object, newdata, Tstart, \dots)
+
+\method{rocJM}{JMbayes}(object, newdata, Tstart, Thoriz = NULL, 
     Dt = NULL, idVar = "id", simulate = FALSE, M = 100, \dots)
 }
 
@@ -105,6 +113,8 @@ jointFit <- jointModelBayes(lmeFit, survFit, timeVar = "year")
 
 # AUC using data up to year 5 with horizon at year 8 
 aucJM(jointFit, pbc2, Tstart = 5, Thoriz = 8)
+
+plot(rocJM(jointFit, pbc2, Tstart = 5, Thoriz = 8))
 }
 }
 

@@ -13,6 +13,9 @@ function (object, newdata, idVar = "id", method = "BFGS", control = NULL) {
     extraForm <- object$Forms$extraForm
     indFixed <- extraForm$indFixed
     indRandom <- extraForm$indRandom
+    estimateWeightFun <- object$estimateWeightFun
+    weightFun <- object$Funs$weightFun
+    max.time <- max(object$y$Time)
     TermsX <- object$Terms$termsYx
     TermsZ <- object$Terms$termsYz
     TermsX.extra <- object$Terms$termsYx.extra
@@ -109,7 +112,7 @@ function (object, newdata, idVar = "id", method = "BFGS", control = NULL) {
         mu.y <- as.vector(X.i %*% betas + Z.i %*% b)
         logY <- densLong(y[id.i], mu.y, sigma, log = TRUE)
         log.p.yb <- sum(logY)
-        log.p.b <- densRE(b, D = D, log = TRUE, prop = FALSE)
+        log.p.b <- densRE(b, mu = rep(0, ncz), D = D, log = TRUE, prop = FALSE)
         st <- survMats.last[[ii]]$st
         wk <- survMats.last[[ii]]$wk
         P <- survMats.last[[ii]]$P
@@ -123,7 +126,7 @@ function (object, newdata, idVar = "id", method = "BFGS", control = NULL) {
             Ys <- transFun.value(as.vector(Xs %*% betas + Zs %*% b), data.s[ids.i, ])
         if (param %in% c("td-extra", "td-both"))
             Ys.extra <- transFun.extra(as.vector(Xs.extra %*% betas[indFixed] + 
-                                                     Zs.extra %*% b[indRandom]), data.s[ids.i, ])
+                                         Zs.extra %*% b[indRandom]), data.s[ids.i, ])
         tt <- switch(param,
             "td-value" = as.matrix(Ys) %*% alphas, 
             "td-extra" = as.matrix(Ys.extra) %*% Dalphas,
@@ -181,7 +184,7 @@ function (object, newdata, idVar = "id", method = "BFGS", control = NULL) {
         fd(thetas.b, logPost, ii = ii, transform = transform)
     }
     w <- numeric(length(last.time))
-    con <- list(maxit = 200, parscale = rep(0.01, length(thetas.b)))
+    con <- list(maxit = 200, parscale = rep(0.001, length(thetas.b)))
     con[names(control)] <- control
     for (i in seq_along(last.time)) {
         w[i] <- tryCatch({
@@ -192,7 +195,7 @@ function (object, newdata, idVar = "id", method = "BFGS", control = NULL) {
             opt.thetas$D <- chol.transf(opt.thetas$D)
             opt.thetas$D <- opt.thetas$D[lower.tri(opt.thetas$D, TRUE)]
             opt.thetas <- unlist(as.relistable(opt.thetas))
-            H <- opt$hessian #fd.vec(opt.thetas, score.logPost, ii = i, transform = FALSE, eps = 1e-06)
+            H <- opt$hessian
             as.vector(0.5 * length(unlist(list.thetas)) * log(2 * pi) - 
                 0.5 * determinant(H)$modulus - opt$value)
         }, error = function (e) NA)

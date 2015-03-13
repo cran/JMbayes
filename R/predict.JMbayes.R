@@ -85,15 +85,20 @@ function (object, newdata, type = c("Marginal", "Subject"),
         X <- model.matrix(formYx, mfX)
         Z <- model.matrix(formYz, mfZ)[na.ind, , drop = FALSE]
         TermsT <- object$Terms$termsT
-        data.id <- newdata[!duplicated(id), ]
+        data.id <- newdata[tapply(row.names(newdata), id, tail, n = 1L), ]
         data.s <- data.id[rep(1:nrow(data.id), each = 15L), ]
         idT <- data.id[[idVar]]
         idT <- match(idT, unique(idT))
         ids <- data.s[[idVar]]
         ids <- match(ids, unique(ids))
-        mfT <- model.frame(delete.response(TermsT), data = data.id)
-        tt <- attr(delete.response(TermsT), "term.labels")
-        formT <- if (length(tt)) reformulate(tt) else reformulate("1")
+        mfT <- model.frame(delete.response(TermsT), data = data.id)        
+        formT <- if (!is.null(kk <- attr(TermsT, "specials")$cluster)) {
+            tt <- drop.terms(TermsT, kk - 1, keep.response = FALSE)
+            reformulate(attr(tt, "term.labels"))
+        } else {
+            tt <- attr(delete.response(TermsT), "term.labels")
+            if (length(tt)) reformulate(tt) else reformulate("1")
+        }
         W <- model.matrix(formT, mfT)[, -1, drop = FALSE]
         obs.times <- split(newdata[[timeVar]], id.)
         last.time <- if (is.null(last.time)) {
@@ -255,7 +260,7 @@ function (object, newdata, type = c("Marginal", "Subject"),
             low <- lapply(oo, f1) 
             up <- lapply(oo, f2)
             out <- list(pred = out, se.fit = unlist(se.fit), 
-                low = unlist(low), upp = unlist(up))
+                low = unlist(low), upp = unlist(up), all.vals = oo)
             if (!is.null(invlink)) {
                 out$low <- invlink(out$low)
                 out$upp <- invlink(out$upp)
@@ -265,7 +270,7 @@ function (object, newdata, type = c("Marginal", "Subject"),
             newdata$pred <- c(X %*% betas) + rowSums(Z * modes.b[id, ])
             out <- if (is.list(out)) {
                 newdata$upp <- newdata$low <- newdata$se.fit <- NA
-                rbind(newdata, cbind(data.id2, do.call(cbind, out)))
+                rbind(newdata, cbind(data.id2, do.call(cbind, out[-5])))
             } else {
                 rbind(newdata, cbind(data.id2, pred = out))
             }
