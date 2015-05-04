@@ -53,11 +53,16 @@ function (lmeObject, survObject, timeVar,
         } else {
             seq_len(nrow(survObject$model))
         }
+        strata <- if (!is.null(survObject$model$strata)) {
+            as.vector(unclass(survObject$model$strata))
+        } else {
+            seq_len(nrow(survObject$model))
+        }
         idT <- match(idT, unique(idT))
         LongFormat <- length(idT) > length(unique(idT))
         TimeL <- TimeLl <- SurvInf[, "start"]
         TimeL <- tapply(TimeL, idT, head, n = 1)
-        anyLeftCens <- any(TimeL > 1e-07)
+        anyLeftTrunc <- any(TimeL > 1e-07)
         TimeR <- SurvInf[, "stop"]
         TimeR[TimeR < 1e-04] <- 1e-04
         Time <- tapply(TimeR, idT, tail, n = 1)
@@ -272,7 +277,7 @@ function (lmeObject, survObject, timeVar,
               LongFormat = LongFormat)
     if (typeSurvInf == "counting")
         y <- c(y, list(TimeL = TimeL, TimeR = TimeR, eventLong = eventLong, idT = idT,
-                       typeSurvInf = typeSurvInf, anyLeftCens = anyLeftCens))
+                       typeSurvInf = typeSurvInf, anyLeftTrunc = anyLeftTrunc))
     x <- list(X = X, Z = Z, W = W)
     if (typeSurvInf == "counting") {
         wind <- tapply(idT, idT, function (x) rep(c(FALSE, TRUE), c(length(x) - 1, 1)))
@@ -292,8 +297,12 @@ function (lmeObject, survObject, timeVar,
     wk <- GQsurv$wk
     sk <- GQsurv$sk
     K <- length(sk)
-    P <- Time / 2
-    st <- outer(P, sk + 1)
+    P <- if (typeSurvInf == "counting" && anyLeftTrunc) (Time - TimeL) / 2 else Time / 2
+    st <- if (typeSurvInf == "counting" && anyLeftTrunc) {
+        outer(P, sk) + c(Time + TimeL) / 2
+    } else {
+        outer(P, sk + 1)
+    }
     id.GK <- rep(seq_along(Time), each = K)
     data.id2 <- data.id[id.GK, ]
     data.id2[[timeVar]] <- pmax(c(t(st)) - lag, 0)
@@ -363,13 +372,8 @@ function (lmeObject, survObject, timeVar,
         Ws <- do.call(rbind, mapply(function (x, i) x[i, , drop = FALSE], i = TDind,
                                     x = lapply(split(W, idT), matrix, ncol = ncol(W)), 
                                     SIMPLIFY = FALSE))
-        if (anyLeftCens) {
-            PL <- TimeL / 2
-            stL <- outer(PL, sk + 1)
-            W2Ls <- splineDesign(rr, c(t(stL)), ord = con$ordSpline)
-        }
     } else {
-        Ws <- W2Ls <- NULL
+        Ws <- NULL
     }
     x <- c(x, list(Ws = Ws, W2 = W2, W2s = W2s))
     # All data

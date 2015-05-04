@@ -32,8 +32,16 @@ function (object, process = c("Longitudinal", "longitudinal", "Event", "event"),
         wk <- GQsurv$wk
         sk <- GQsurv$sk
         K <- length(sk)
-        P <- times / 2
-        st <- outer(P, sk + 1)
+        anyLeftTrunc <- object$y$anyLeftTrunc
+        if (anyLeftTrunc) {
+            ni <- tapply(object$y$id, object$y$id, length)
+            TimeL <- rep(object$y$TimeL, ni)
+            P <- (times - TimeL) / 2
+            st <- outer(P, sk) + c(times + TimeL) / 2
+        } else {
+            P <- times / 2
+            st <- outer(P, sk + 1)
+        }
         id.GK <- rep(seq_along(times), each = K)
         indBetas <- object$y$indBetas
         data.id2 <- Data$data.id[rep(object$y$id, each = K), ]

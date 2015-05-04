@@ -1,11 +1,16 @@
 ModelMats <-
-function (time, ii) {
+function (time, ii, timeL = NULL) {
     GQsurv <- if (object$control$GQsurv == "GaussKronrod") gaussKronrod() else gaussLegendre(object$control$GQsurv.k)
     wk <- GQsurv$wk
     sk <- GQsurv$sk
     id.GK <- rep(ii, each = length(sk))
-    P <- time / 2
-    st <- P * (sk + 1)
+    if (!is.null(timeL)) {
+        P <- c(time - timeL) / 2
+        st <- P * sk +  c(time + timeL) / 2
+    } else {
+        P <- time / 2
+        st <- P * (sk + 1)
+    }
     data.id2 <- data.id[id.GK, ]
     data.id2[[timeVar]] <- pmax(st - lag, 0)
     kn <- object$control$knots

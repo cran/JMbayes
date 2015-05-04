@@ -1,5 +1,5 @@
 # Define UI for miles per gallon application
-shinyUI(pageWithSidebar(
+shinyUI(fluidPage(
     
     # Application title
     headerPanel("Dynamic Predictions using Joint Models"),
@@ -12,37 +12,32 @@ shinyUI(pageWithSidebar(
             fileInput('patientFile', 'Load subject data',
                       accept = c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),
 
-            withTags(div(class = 'row-fluid',
-                         div(class = 'span3', radioButtons('sep', 'Separator', c(Comma = ',', 
-                                                                                 Semicolon = ';', Tab = '\t'), ',')),
-                         div(class = 'span3', radioButtons('dec', 'Decimal', c(Dot = '.', Comma = ','), '.')),
-                         div(class = 'span5', radioButtons('quote', 'Quote', c(None = '', 'Double Quote' = '"', 
-                                                                               'Single Quote' = "'"), '"'))
-            ))
+            fluidRow(column(4, radioButtons('sep', 'Separator', c(Comma = ',', Semicolon = ';', Tab = '\t'), ',')),
+                     column(4, radioButtons('dec', 'Decimal', c(Dot = '.', Comma = ','), '.')),
+                     column(4, radioButtons('quote', 'Quote', c(None = '', 'Double Quote' = '"', 'Single Quote' = "'"), '"')))
         ),
         
         wellPanel(
             uiOutput("modelChoose"),            
             
             uiOutput("obsChoose"),
+                        
+            fluidRow(column(4, radioButtons('TypePlot', 'Type of Plot', 
+                                            c("Survival" = 'surv', "Cumulative Incidence" = "cumInc",
+                                              "Smiley Faces" = "smFace",
+                                              "100 Clones" = 'stickMan', "Longitudinal" = 'longitudinal'), 
+                                            "surv")),
+                     column(4, numericInput("windowTime", "Target window time:", NULL)),
+                     column(4,  numericInput("time", "Target horizon time:", NULL))),
             
-            radioButtons('TypePlot', 'Type of Plot', 
-                         c("Survival" = 'surv', "Cumulative Incidence" = "cumInc",
-                           "Smiley Faces" = "smFace",
-                           "100 Clones" = 'stickMan', "Longitudinal" = 'longitudinal'), 
-                         "surv"),
-            numericInput("windowTime", "Target window time:", NULL),
-
-            numericInput("time", "Target horizon time:", NULL),
                   
             uiOutput("lastTime"),
             
             numericInput("M", "Monte Carlo samples:", 200),
+                   
+            fluidRow(column(6, downloadButton('downloadData', 'Download Event-free Probabilities')),
+                     column(6, downloadButton('downloadPlot', 'Download Plot')))
             
-            withTags(div(class = 'row-fluid',
-                         div(class = 'span5', downloadButton('downloadData', 'Download Event-free Probabilities')),
-                         div(class = 'span5', downloadButton('downloadPlot', 'Download Plot'))
-            ))
         )
     ),
     

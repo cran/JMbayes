@@ -289,6 +289,31 @@ jointFit.pbc5 <- jointModelBayes(lmeFit.pbc3, survFit.pbc, timeVar = "year",
 	densLong = dLongBin)
 
 summary(jointFit.pbc5)
+
+
+# create start-stop counting process variables
+pbc <- pbc2[c("id", "serBilir", "drug", "year", "years",
+              "status2", "spiders")]
+pbc$start <- pbc$year
+splitID <- split(pbc[c("start", "years")], pbc$id)
+pbc$stop <- unlist(lapply(splitID,
+                          function (d) c(d$start[-1], d$years[1]) ))
+pbc$event <- with(pbc, ave(status2, id,
+                           FUN = function (x) c(rep(0, length(x)-1), x[1])))
+pbc <- pbc[!is.na(pbc$spiders), ]
+
+# left-truncation
+pbc <- pbc[pbc$start != 0, ] 
+
+lmeFit.pbc <- lme(log(serBilir) ~ drug * ns(year, 2),
+                  random = ~ ns(year, 2) | id, data = pbc)
+
+tdCox.pbc <- coxph(Surv(start, stop, event) ~ drug * spiders + cluster(id),
+                   data = pbc, x = TRUE, model = TRUE)
+
+jointFit.pbc6 <- jointModelBayes(lmeFit.pbc, tdCox.pbc, timeVar = "year")
+
+summary(jointFit.pbc6)
 }
 }
 

@@ -1,3 +1,9 @@
+Changes in version: JMbayes_0.7-2
+
+  * jointModelBayes() can now accept Cox models with left-truncation.
+
+---------------------------------------
+
 Changes in version: JMbayes_0.7-0
 
   * New function rocJM() calculates dynamic sensitivity and specificity and the plot produce the ROC curve plot.

@@ -1,8 +1,8 @@
 predict.JMbayes <-
 function (object, newdata, type = c("Marginal", "Subject"),
     interval = c("none", "confidence", "prediction"), level = 0.95, idVar = "id", 
-    FtTimes = NULL, last.time = NULL, M = 300, returnData = FALSE, scale = 1.6, 
-    weight = rep(1, nrow(newdata)), invlink = NULL, seed = 1, ...) {
+    FtTimes = NULL, last.time = NULL, LeftTrunc_var = NULL, M = 300, returnData = FALSE, 
+    scale = 1.6, weight = rep(1, nrow(newdata)), invlink = NULL, seed = 1, ...) {
     if (!inherits(object, "JMbayes"))
         stop("Use only with 'JMbayes' objects.\n")
     if (!is.data.frame(newdata) || nrow(newdata) == 0)
@@ -54,6 +54,7 @@ function (object, newdata, type = c("Marginal", "Subject"),
         param <- object$param
         densLong <- object$Funs$densLong
         hasScale <- object$Funs$hasScale
+        anyLeftTrunc <- object$y$anyLeftTrunc
         densRE <- object$Funs$densRE
         transFun.value <- object$Funs$transFun.value
         transFun.extra <- object$Funs$transFun.extra
@@ -117,6 +118,15 @@ function (object, newdata, type = c("Marginal", "Subject"),
                 rep(list(FtTimes), length(last.time))
             else
                 FtTimes
+        }
+        TimeL <- if (!is.null(anyLeftTrunc) && anyLeftTrunc) {
+            if (is.null(LeftTrunc_var) || is.null(newdata[[LeftTrunc_var]])) {
+                warning("The original joint model was fitted in a data set with left-",
+                        "truncation and\nargument 'LeftTrunc_var' of predict.JMbayes() has not ", 
+                        "been specified.\n")
+            }
+            TimeL <- newdata[[LeftTrunc_var]]
+            tapply(TimeL, id, head, n = 1)
         }
         n <- length(object$y$Time)
         n.tp <- length(last.time)

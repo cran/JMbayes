@@ -1,7 +1,8 @@
 survfitJM.JMbayes <-
 function (object, newdata, type = c("SurvProb", "Density"), 
                                idVar = "id", simulate = TRUE, survTimes = NULL, 
-                               last.time = NULL, M = 200L, CI.levels = c(0.025, 0.975), 
+                               last.time = NULL, LeftTrunc_var = NULL, M = 200L, 
+                               CI.levels = c(0.025, 0.975), 
                                log = FALSE, scale = 1.6, weight = rep(1, nrow(newdata)), 
                                init.b = NULL, seed = 1L, ...) {
     if (!inherits(object, "JMbayes"))
@@ -21,6 +22,7 @@ function (object, newdata, type = c("SurvProb", "Density"),
     param <- object$param
     densLong <- object$Funs$densLong
     hasScale <- object$Funs$hasScale
+    anyLeftTrunc <- object$y$anyLeftTrunc
     densRE <- object$Funs$densRE
     transFun.value <- object$Funs$transFun.value
     transFun.extra <- object$Funs$transFun.extra
@@ -87,6 +89,15 @@ function (object, newdata, type = c("SurvProb", "Density"),
     } else {
         as.list(Time)
     }
+    TimeL <- if (!is.null(anyLeftTrunc) && anyLeftTrunc) {
+        if (is.null(LeftTrunc_var) || is.null(newdata[[LeftTrunc_var]])) {
+            warning("The original joint model was fitted in a data set with left-",
+                    "truncation and\nargument 'LeftTrunc_var' of survfitJM() has not ", 
+                    "been specified.\n")
+        }
+        TimeL <- newdata[[LeftTrunc_var]]
+        tapply(TimeL, id, head, n = 1)
+    }
     n <- length(TT)
     n.tp <- length(last.time)
     ncx <- ncol(X)
@@ -113,8 +124,8 @@ function (object, newdata, type = c("SurvProb", "Density"),
     obs.times.surv <- split(data.id[[timeVar]], idT)
     survMats <- survMats.last <- vector("list", n.tp)
     for (i in seq_len(n.tp)) {
-        survMats[[i]] <- lapply(times.to.pred[[i]], ModelMats, ii = i)
-        survMats.last[[i]] <- ModelMats(last.time[i], ii = i)
+        survMats[[i]] <- lapply(times.to.pred[[i]], ModelMats, ii = i, timeL = TimeL[i])
+        survMats.last[[i]] <- ModelMats(last.time[i], ii = i, timeL = TimeL[i])
     }
     if (type != "SurvProb")
         hazMats <- hMats(Time)

@@ -15,13 +15,15 @@ function (x, digits = max(4, getOption("digits") - 4),
         if (is.null(x$df.RE)) {
             cat("\nLongitudinal Process: Linear mixed-effects model")
         } else {
-            cat("\nLongitudinal Process: Linear mixed-effects model with Student's-t(df=", x$df.RE, ") random effects", sep = "")        
+            cat("\nLongitudinal Process: Linear mixed-effects model with Student's-t(df=", 
+                x$df.RE, ") random effects", sep = "")        
         }
     } else {
         if (is.null(x$df.RE)) {
             cat("\nLongitudinal Process: user-defined mixed model")
         } else {
-            cat("\nLongitudinal Process: user-defined mixed model with Student's-t(df=", x$df.RE, ") random effects", sep = "")        
+            cat("\nLongitudinal Process: user-defined mixed model with Student's-t(df=", 
+                x$df.RE, ") random effects", sep = "")        
         }
     }
     cat("\nEvent Process: ")
@@ -36,7 +38,8 @@ function (x, digits = max(4, getOption("digits") - 4),
     }
     ttE <- if (x$baseHaz == "P-splines") "penalized-spline-approximated" else "spline-approximated"
     if (printKnots)
-        cat("Relative risk model with ", ttE, " baseline risk function (knots at: ", xx, ")\n", sep = "")
+        cat("Relative risk model with ", ttE, " baseline risk function (knots at: ", 
+            xx, ")\n", sep = "")
     else
         cat("Relative risk model with", ttE, "\n\t\tbaseline risk function\n")
     if (x$estimateWeightFun) {

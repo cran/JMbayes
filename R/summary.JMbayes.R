@@ -1,5 +1,5 @@
 summary.JMbayes <-
-function (object, ...) {
+function (object, include.baseHazCoefs = FALSE, ...) {
     if (!inherits(object, "JMbayes"))
         stop("Use only with 'JMbayes' objects.\n")
     coefs <- object$postMeans
@@ -24,6 +24,10 @@ function (object, ...) {
     p.gammas <- c(Ps$gammas, Ps$alphas, Ps$Dalphas, Ps$shapes, Ps$Bs.gammas, if (!is.null(Ps$tauBs)) NA else NULL)
     coefsT <- cbind("Value" = gammas, "Std.Err" = strs.gammas, "Std.Dev" = sds.gammas,
                     "2.5%" = cis.gammas[1, ], "97.5%" = cis.gammas[2, ], "P" = p.gammas)
+    if (!include.baseHazCoefs) {
+        rnams <- rownames(coefsT)
+        coefsT <- coefsT[-grep("Bs.gammas", rnams, fixed = TRUE), ]
+    } 
     out <- list("CoefTable-Long" = coefsY, "CoefTable-Event" = coefsT,
                 D = coefs$D, sigma = coefs$sigma)
     out$N <- nrow(object$x$X)

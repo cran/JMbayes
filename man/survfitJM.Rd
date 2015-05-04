@@ -15,7 +15,8 @@ survfitJM(object, newdata, \dots)
 
 \method{survfitJM}{JMbayes}(object, newdata, 
    type = c("SurvProb", "Density"), idVar = "id", 
-   simulate = TRUE, survTimes = NULL, last.time = NULL, M = 200L, 
+   simulate = TRUE, survTimes = NULL, last.time = NULL, 
+   LeftTrunc_var = NULL, M = 200L, 
    CI.levels = c(0.025, 0.975), log = FALSE, scale = 1.6, 
    weight = rep(1, nrow(newdata)), 
    init.b = NULL, seed = 1L, \dots)
@@ -37,6 +38,8 @@ survfitJM(object, newdata, \dots)
     was known to be alive. If \code{NULL}, then this is automatically taken as the last time each subject provided a longitudinal
     measurement. If a numeric vector, then it is assumed to contain this last time point for each subject. If a character string, then
     it should be a variable in the data frame \code{newdata}.}
+  \item{LeftTrunc_var}{character string indicating the name of the variable in \code{newdata} that denotes the left-truncation
+   time.}
   \item{M}{integer denoting how many Monte Carlo samples to use -- see \bold{Details}.}
   \item{CI.levels}{a numeric vector of length two that specifies which quantiles to use for the calculation of confidence interval for the 
     predicted probabilities -- see \bold{Details}.}
