@@ -1,7 +1,8 @@
 S.b <-
 function (t, b, ii, Mats, log = FALSE) {
-    if (t == 0)
-        return(1)
+    if (t == 0) {
+        if (log) return(0) else return(0)
+    }
     idT.i <- idT %in% ii
     ids.i <- ids %in% ii
     st <- Mats$st

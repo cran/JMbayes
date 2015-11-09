@@ -1,5 +1,4 @@
-jointModelBayes <-
-function (lmeObject, survObject, timeVar,
+jointModelBayes <- function (lmeObject, survObject, timeVar,
                              param = c("td-value", "td-extra", "td-both", "shared-betasRE", "shared-RE"),
                              extraForm = NULL, baseHaz = c("P-splines", "regression-splines"), 
                              transFun = NULL, densLong = NULL, lag = 0, df.RE = NULL,
@@ -93,6 +92,7 @@ function (lmeObject, survObject, timeVar,
     mfX <- model.frame(terms(formYx), data = data)
     TermsX <- attr(mfX, "terms")
     X <- model.matrix(formYx, mfX)
+    offset <- model.offset(mfX)
     formYz <- formula(lmeObject$modelStruct$reStruct[[1]])
     mfZ <- model.frame(terms(formYz), data = data)
     TermsZ <- attr(mfZ, "terms")
@@ -209,7 +209,8 @@ function (lmeObject, survObject, timeVar,
             stop("\nincorrect specification of 'transFun' arguments.")
     }
     # put functions in a list
-    hasScale <- inherits(try(densLong(y.long[1L], lmeObject$fitted[1L], , log = FALSE, data), 
+    hasScale <- inherits(try(densLong(y = y.long[1L], eta.y = lmeObject$fitted[1L], 
+                                      log = FALSE, data = data), 
                              silent = TRUE), "try-error")
     Funs <- list(transFun.value = transFun.value, transFun.extra = transFun.extra,
                  densRE = densRE, densLong = densLong, hasScale = hasScale)
@@ -274,7 +275,7 @@ function (lmeObject, survObject, timeVar,
     y <- list(y = y.long, Time = Time, event = event, lag = lag, df.RE = df.RE, id = id,
               indBetas = if (check_names) indBetas, 
               indBetasRE = if (param == "shared-betasRE") indBetasRE, 
-              LongFormat = LongFormat)
+              LongFormat = LongFormat, offset = offset)
     if (typeSurvInf == "counting")
         y <- c(y, list(TimeL = TimeL, TimeR = TimeR, eventLong = eventLong, idT = idT,
                        typeSurvInf = typeSurvInf, anyLeftTrunc = anyLeftTrunc))

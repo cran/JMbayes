@@ -1,5 +1,4 @@
-MCMCfit <-
-function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
+MCMCfit <- function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors, 
                      scales, Funs, Covs, Data, control, df.RE) {
     # extract data longitudinal
     performHC <- control$performHC
@@ -8,6 +7,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
     y.long <- dropAttr(y$y)
     X <- if (performHC) dropAttr(x$X, flat_indBetas) else dropAttr(x$X)
     Z <- dropAttr(x$Z)
+    offset <- y$offset
     # extract data survival
     Time <- dropAttr(y$Time)
     event <- dropAttr(y$event)
@@ -20,11 +20,13 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
     Xtime <- if (performHC) dropAttr(x$Xtime, flat_indBetas) else dropAttr(x$Xtime)
     XXtime <- dropAttr(x$XXtime)
     Ztime <- dropAttr(x$Ztime)
-    Xtime.extra <- dropAttr(x$Xtime.extra)
+    iF <- dropAttr(extraForm$indFixed)
+    iR <- dropAttr(extraForm$indRandom)
+    Xtime.extra <- if (performHC) dropAttr(x$Xtime.extra, flat_indBetas, iF) else dropAttr(x$Xtime.extra)
     Ztime.extra <- dropAttr(x$Ztime.extra)
     Xs <- if (performHC) dropAttr(x$Xs, flat_indBetas) else dropAttr(x$Xs)
     Zs <- dropAttr(x$Zs)
-    Xs.extra <- if (performHC) dropAttr(x$Xs.extra, flat_indBetas) else dropAttr(x$Xs.extra)
+    Xs.extra <- if (performHC) dropAttr(x$Xs.extra, flat_indBetas, iF) else dropAttr(x$Xs.extra)
     Zs.extra <- dropAttr(x$Zs.extra)
     Xu <- if (performHC) dropAttr(x$Xu, flat_indBetas) else dropAttr(x$Xu)
     Zu <- dropAttr(x$Zu)
@@ -44,8 +46,6 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
     idFast <- c(id[-length(id)] != id[-1L], TRUE)
     id.GK <- dropAttr(y$id.GK)
     id.GKFast <- c(id.GK[-length(id.GK)] != id.GK[-1L], TRUE)
-    iF <- dropAttr(extraForm$indFixed)
-    iR <- dropAttr(extraForm$indRandom)
     idT <- dropAttr(y$idT)
     lag <- y$lag
     LongFormat <- y$LongFormat
@@ -107,8 +107,11 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
         nbetas22 <- nbetas2 * nbetas2
         seqn <- seq_len(n)
         diagbetas2 <- diag(nbetas2)
-        if (!is.null(iF))
-            iF <- which(!indBetasL[iF])
+        if (!is.null(iF)) {
+            iii <- vector("logical", length(betas))
+            iii[iF] <- TRUE
+            iF <- which(iii[-flat_indBetas])
+        }
     } else {
         betas1 <- betas
         betas2 <- numeric(ncZ)
@@ -210,7 +213,8 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
     logPost.betas1 <- function (betas1) {
         Xbetas <- drop(X %*% betas1)
         eta.y <- Xbetas + Zb
-        log.pyb <- fastSumID2(densLong(y.long, eta.y, 1/sqrt(tau), log = TRUE, data), idFast)
+        eta.y.offset <- if (is.null(offset)) eta.y else eta.y + offset
+        log.pyb <- fastSumID2(densLong(y.long, eta.y.offset, 1/sqrt(tau), log = TRUE, data), idFast)
         log.prior <- log.prior.betas1(betas1)
         if (!paramRE) {
             Mtime <- numeric(n)
@@ -267,7 +271,8 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
         }
     }
     logPost.betas1Fast <- function () {
-        log.pyb <- fastSumID2(densLong(y.long, eta.y, 1/sqrt(tau), log = TRUE, data), idFast)
+        eta.y.offset <- if (is.null(offset)) eta.y else eta.y + offset
+        log.pyb <- fastSumID2(densLong(y.long, eta.y.offset, 1/sqrt(tau), log = TRUE, data), idFast)
         log.prior <- log.prior.betas1(betas1)
         if (!paramRE) {
             Mtime <- numeric(n)
@@ -289,14 +294,16 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
         }
     }
     logPost.tau <- function (tau) {
-        log.pyb <- densLong(y.long, eta.y, 1/sqrt(tau), log = TRUE, data)
+        eta.y.offset <- if (is.null(offset)) eta.y else eta.y + offset
+        log.pyb <- densLong(y.long, eta.y.offset, 1/sqrt(tau), log = TRUE, data)
         log.prior <- log.prior.tau(tau)
         sum(log.pyb, na.rm = TRUE) + log.prior
     }
     logPost.RE <- function (b) {
         Zb <- .rowSums(Z * b[id, , drop = FALSE], nrZ, ncZ)
         eta.y <- if (nbetas1) Xbetas + Zb else Zb
-        log.pyb <- fastSumID2(densLong(y.long, eta.y, 1/sqrt(tau), log = TRUE, data), idFast)
+        eta.y.offset <- if (is.null(offset)) eta.y else eta.y + offset
+        log.pyb <- fastSumID2(densLong(y.long, eta.y.offset, 1/sqrt(tau), log = TRUE, data), idFast)
         mu_b <- if (performHC) mean_b(indBetas) else betas2
         log.prior <- densRE(b, mu = mu_b, invD = invD, log = TRUE)
         if (!paramRE) {
@@ -385,7 +392,8 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
     }
     logPost.REFast <- function () {
         eta.y <- if (nbetas1) Xbetas + Zb else Zb
-        log.pyb <- fastSumID2(densLong(y.long, eta.y, 1/sqrt(tau), log = TRUE, data), idFast)
+        eta.y.offset <- if (is.null(offset)) eta.y else eta.y + offset
+        log.pyb <- fastSumID2(densLong(y.long, eta.y.offset, 1/sqrt(tau), log = TRUE, data), idFast)
         mu_b <- if (performHC) mean_b(indBetas) else betas2
         log.prior <- densRE(b, mu = mu_b, invD = invD, log = TRUE)
         if (!paramRE) {
@@ -765,7 +773,6 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
             Xs.extrabetas <- drop(Xs.extra %*% betas1[iF])
             ex <- transFun.extra(Xtime.extrabetas + Ztime.extrab, data.id)
             exs <- transFun.extra(Xs.extrabetas + Zs.extrab, data.s)
-            
         } else {
             ex <- transFun.extra(Ztime.extrab, data.id)
             exs <- transFun.extra(Zs.extrab, data.s)
@@ -874,7 +881,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
             lP.betas <- logPost.betas1(new.betas1[ii, ])
             lP.new.betas <- lP.betas$log.post
             lRatio.betas <- lP.new.betas - lP.old.betas
-            if (lRatio.betas >= 0 || runif(1L) < exp(lRatio.betas)) {
+            if (is.finite(lRatio.betas) && (lRatio.betas >= 0 || runif(1L) < exp(lRatio.betas))) {
                 ar.betas[i] <- 1
                 betas1 <- new.betas1[ii, ]
                 Xbetas <- lP.betas$Xbetas
@@ -995,7 +1002,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
             lP.gammas <- logPost.gammas(new.gammas[ii, ])
             lP.new.gammas <- lP.gammas$log.post
             lRatio.gammas <- lP.new.gammas - lP.old.gammas
-            if (lRatio.gammas >= 0 || runif(1L) < exp(lRatio.gammas)) {
+            if (is.finite(lRatio.gammas) && (lRatio.gammas >= 0 || runif(1L) < exp(lRatio.gammas))) {
                 ar.gammas[i] <- 1
                 gammas <- new.gammas[ii, ]
                 expWgammas <- lP.gammas$expWgammas
@@ -1012,7 +1019,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
         lP.Bs.gammas <- logPost.Bs.gammas(new.Bs.gammas[ii, ])
         lP.new.Bs.gammas <- lP.Bs.gammas$log.post
         lRatio.Bs.gammas <- lP.new.Bs.gammas - lP.old.Bs.gammas
-        if (lRatio.Bs.gammas >= 0 || runif(1L) < exp(lRatio.Bs.gammas)) {
+        if (is.finite(lRatio.Bs.gammas) && (lRatio.Bs.gammas >= 0 || runif(1L) < exp(lRatio.Bs.gammas))) {
             ar.Bs.gammas[i] <- 1
             Bs.gammas <- new.Bs.gammas[ii, ]
             log.h0s <- lP.Bs.gammas$log.h0s
@@ -1043,7 +1050,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
             lP.alphas <- logPost.alphas(new.alphas[ii, ])
             lP.new.alphas <- lP.alphas$log.post
             lRatio.alphas <- lP.new.alphas - lP.old.alphas
-            if (lRatio.alphas >= 0 || runif(1L) < exp(lRatio.alphas)) {
+            if (is.finite(lRatio.alphas) && (lRatio.alphas >= 0 || runif(1L) < exp(lRatio.alphas))) {
                 ar.alphas[i] <- 1
                 alphas <- new.alphas[ii, ]
                 log.Surv <- lP.alphas$log.Surv
@@ -1060,7 +1067,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
             lP.Dalphas <- logPost.Dalphas(new.Dalphas[ii, ])
             lP.new.Dalphas <- lP.Dalphas$log.post
             lRatio.Dalphas <- lP.new.Dalphas - lP.old.Dalphas
-            if (lRatio.Dalphas >= 0 || runif(1L) < exp(lRatio.Dalphas)) {
+            if (is.finite(lRatio.Dalphas) && (lRatio.Dalphas >= 0 || runif(1L) < exp(lRatio.Dalphas))) {
                 ar.Dalphas[i] <- 1
                 Dalphas <- new.Dalphas[ii, ]
                 Ms <- lP.Dalphas$Ms
@@ -1129,7 +1136,8 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
                 res.Dalphas[jj, ] <- Dalphas
             if (estimateWeightFun)
                 res.shapes[jj, ] <- shapes
-            log.pyb <- fastSumID2(densLong(y.long, eta.y, 1/sqrt(tau), log = TRUE, data), idFast)
+            eta.y.offset <- if (is.null(offset)) eta.y else eta.y + offset
+            log.pyb <- fastSumID2(densLong(y.long, eta.y.offset, 1/sqrt(tau), log = TRUE, data), idFast)
             log.h0s <- if (rescale_Bs.gammas) {
                 drop(W2s %*% (tchol_CovBs.gammas %*% Bs.gammas + init.Bs.gammas))
             } else drop(W2s %*% Bs.gammas)
@@ -1230,7 +1238,12 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
     sigma <- postMeans$sigma; b <- postMeans$b; D <- postMeans$D
     gammas <- postMeans$gammas; Bs.gammas <- postMeans$Bs.gammas; alphas <- postMeans$alphas
     Dalphas <- postMeans$Dalphas; shapes <- postMeans$shapes
-    log.pyb <- fastSumID2(densLong(y.long, drop(X %*% betas1 + rowSums(Z * b[id, , drop = FALSE])),
+    eta.y.offset <- if (is.null(offset)) {
+        drop(X %*% betas1 + rowSums(Z * b[id, , drop = FALSE])) 
+    } else {
+        drop(X %*% betas1 + rowSums(Z * b[id, , drop = FALSE])) + offset
+    }
+    log.pyb <- fastSumID2(densLong(y.long, eta.y.offset,
                                    sigma, log = TRUE, data), idFast)
     log.h0s <- drop(W2s %*% Bs.gammas)
     if (!paramRE) {
@@ -1332,6 +1345,7 @@ function (y, x, param, extraForm, baseHaz, estimateWeightFun, initials, priors,
         mcmcOut$b <- res.b - res.mean_b
         postMeans$b <- apply(mcmcOut$b, c(1L, 2L), mean)
     }
+    rm(list = ".Random.seed", envir = globalenv())
     list(mcmc = if (control$keepRE) mcmcOut else mcmcOut[indb], postMeans = postMeans,
          postModes = postModes,
          postVarsRE = postVarsRE,

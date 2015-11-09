@@ -1,5 +1,4 @@
-print.summary.JMbayes <-
-function (x, digits = max(4, getOption("digits") - 4),
+print.summary.JMbayes <- function (x, digits = max(4, getOption("digits") - 4),
                                    printKnots = FALSE, ...) {
     if (!inherits(x, "summary.JMbayes"))
         stop("Use only with 'summary.JMbayes' objects.\n")
@@ -37,11 +36,12 @@ function (x, digits = max(4, getOption("digits") - 4),
         }), sep = ": ", collapse = "\n\t\t")
     }
     ttE <- if (x$baseHaz == "P-splines") "penalized-spline-approximated" else "spline-approximated"
-    if (printKnots)
+    if (printKnots) {
         cat("Relative risk model with ", ttE, " baseline risk function (knots at: ", 
             xx, ")\n", sep = "")
-    else
+    } else {
         cat("Relative risk model with", ttE, "\n\t\tbaseline risk function\n")
+    }
     if (x$estimateWeightFun) {
         cat("Parameterization: weighted cumulative effect\n\n")
     } else {
@@ -79,7 +79,8 @@ function (x, digits = max(4, getOption("digits") - 4),
                 c(dimnames(D)[[1]], "Residual") else c(dimnames(D)[[1]], " ")
         }
     } else {
-        dat <- data.frame("StdDev" = c(sds, x$sigma), row.names = c(rownames(D), "Residual"),
+        dat <- data.frame("StdDev" = c(sds, x$sigma), 
+                          row.names = if (!is.null(x$sigma)) c(rownames(D), "Residual") else rownames(D),
                           check.rows = FALSE, check.names = FALSE)
     }
     print(dat)

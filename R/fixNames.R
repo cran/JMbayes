@@ -11,7 +11,9 @@ function (model, names.betas, names.D, names.gammas, names.Bs.gammas, names.alph
             colnames(model$CIs$sigma) <- "sigma"
     }
     #######
-    dimnames(model$mcmc$b) <- dimnames(model$postMeans$b) <- list(names.id, names.D)
+    if (!is.null(model$mcmc[['b']]))
+        dimnames(model$mcmc[['b']]) <- list(names.id, names.D)
+    dimnames(model$postMeans[['b']]) <- list(names.id, names.D)
     dimnames(model$postVarsRE) <- list(names.D, names.D, names.id)
     #######
     dimnames(model$postMeans$D) <- dimnames(model$postModes$D) <- list(names.D, names.D)
