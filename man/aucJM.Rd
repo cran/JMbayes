@@ -3,7 +3,9 @@
 \alias{aucJM}
 \alias{rocJM}
 \alias{aucJM.JMbayes}
+\alias{aucJM.mvJMbayes}
 \alias{rocJM.JMbayes}
+\alias{rocJM.mvJMbayes}
 
 
 \title{Time-Dependent ROCs and AUCs for Joint Models}
@@ -19,14 +21,20 @@ aucJM(object, newdata, Tstart, \dots)
 \method{aucJM}{JMbayes}(object, newdata, Tstart, Thoriz = NULL, 
     Dt = NULL, idVar = "id", simulate = FALSE, M = 100, \dots)
 
+\method{aucJM}{mvJMbayes}(object, newdata, Tstart, Thoriz = NULL, 
+    Dt = NULL, idVar = "id", M = 100, \dots)
+
 rocJM(object, newdata, Tstart, \dots)
 
 \method{rocJM}{JMbayes}(object, newdata, Tstart, Thoriz = NULL, 
     Dt = NULL, idVar = "id", simulate = FALSE, M = 100, \dots)
+
+\method{rocJM}{mvJMbayes}(object, newdata, Tstart, Thoriz = NULL, 
+    Dt = NULL, idVar = "id", M = 100, \dots)
 }
 
 \arguments{
-  \item{object}{an object inheriting from class \code{JMBayes}.}
+  \item{object}{an object inheriting from class \code{JMbayes} or \code{mvJMbayes}.}
   \item{newdata}{a data frame that contains the longitudinal and covariate information for the subjects for which prediction 
     of survival probabilities is required. The names of the variables in this data frame must be the same as in the data frames that
     were used to fit the linear mixed effects model (using \code{lme()}) and the survival model (using \code{coxph()})
@@ -34,7 +42,7 @@ rocJM(object, newdata, Tstart, \dots)
     that identifies the different subjects (see also argument \code{idVar}).}
   \item{Tstart}{numeric scalar denoting the time point up to which longitudinal information is to be used to derive predictions.}
   \item{Thoriz}{numeric scalar denoting the time point for which a prediction of the survival status is of interest; 
-    \code{Thoriz} mast be later than \code{Tstart} and either \code{Dt} or \code{Thoriz} must be specified. If \code{Thoriz} is \code{NULL}
+    \code{Thoriz} must be later than \code{Tstart} and either \code{Dt} or \code{Thoriz} must be specified. If \code{Thoriz} is \code{NULL}
     is set equal to \code{Tstart + Dt}.}
   \item{Dt}{numeric scalar denoting the length of the time interval of prediction; either \code{Dt} or \code{Thoriz} must be specified.}
   \item{idVar}{the name of the variable in \code{newdata} that identifies the different subjects.}

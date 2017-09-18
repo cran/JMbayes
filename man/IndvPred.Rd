@@ -1,6 +1,7 @@
 \name{IndvPred_lme}
 
 \alias{IndvPred_lme}
+\alias{extract_lmeComponents}
 
 \title{Individualized Predictions from Linear Mixed Models}
 
@@ -12,10 +13,12 @@
 IndvPred_lme(lmeObject, newdata, timeVar, times = NULL, M = 200L,
     interval = c("confidence", "prediction"), level = 0.95, 
     return_data = FALSE, seed = 1L)
+    
+extract_lmeComponents(lmeObject, timeVar)
 }
 
 \arguments{
-  \item{lmeObject}{an object inheriting from class \code{lme}.}
+  \item{lmeObject}{an object inheriting from class \code{lme} or class \code{lmeComponents}.}
   \item{newdata}{a data frame in which to look for variables with which to predict.}
   \item{timeVar}{a character string specifying the time variable in the linear mixed 
         model.}
@@ -52,16 +55,24 @@ IndvPred_lme(lmeObject, newdata, timeVar, times = NULL, M = 200L,
 \examples{
 \dontrun{
 # linear mixed model fit
-fitLME <- lme(log(serBilir) ~ drug * ns(year, 2), data = pbc2, 
+fitLME <- lme(log(serBilir) ~ drug * ns(year, 2), data = subset(pbc2, id != 2), 
         random = ~ ns(year, 2) | id)
         
-DF <- IndvPred_lme(fitLME, newdata = subset(pbc2, id %in% c(2, 25)), timeVar = "year", 
+DF <- IndvPred_lme(fitLME, newdata = subset(pbc2, id == 2), timeVar = "year", 
     M = 500, return_data = TRUE)
     
 require(lattice)
 xyplot(pred + low + upp ~ year | id, data = DF,
     type = "l", col = c(2,1,1), lty = c(1,2,2), lwd = 2,
     ylab = "Average log serum Bilirubin")
+    
+# extract_lmeComponents() extract the required components from the lme object
+# that are required to calculate the predictions; this is a light weight version of
+# the object, e.g.,
+fitLME_light <- extract_lmeComponents(fitLME, timeVar = "year")
+
+DF <- IndvPred_lme(fitLME_light, newdata = subset(pbc2, id == 2), timeVar = "year", 
+    M = 500, return_data = TRUE)
 }
 }
 \keyword{methods}
