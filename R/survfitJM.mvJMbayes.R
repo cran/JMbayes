@@ -127,9 +127,9 @@ survfitJM.mvJMbayes <- function (object, newdata, survTimes = NULL, idVar = "id"
     Bs_gammas <- postMeans[grep("^Bs.*gammas$", names(postMeans), fixed = FALSE)]
     invD <- postMeans[grep("inv_D", names(postMeans))]
     Formulas <- object$model_info$Formulas
-    nams_Formulas <- names(Formulas)
-    nams_Formulas <- gsub("_[^_]+$", "", nams_Formulas)
-    outcome <- match(nams_Formulas, respVars)
+    #nams_Formulas <- names(Formulas)
+    #nams_Formulas <- gsub("_[^_]+$", "", nams_Formulas)
+    outcome <- sapply(respVars, grep, x = names(Formulas), fixed = TRUE)
     indFixed <- lapply(Formulas, "[[", "indFixed")
     indRandom <- lapply(Formulas, "[[", "indRandom")
     RE_inds <- object$model_info$RE_inds
@@ -282,6 +282,8 @@ survfitJM.mvJMbayes <- function (object, newdata, survTimes = NULL, idVar = "id"
                      "Pw" = survMats.last[[i]]$Pw, "trans_Funs" = trans_Funs, 
                      "wk" = wk, 
                      "idL3" = which(survMats.last[[i]]$idGK_fast) - 1)
+        if (is.null(Data$gammas))
+            Data$gammas <- numeric(0)
         ff <- function (b, Data) -log_post_RE_svft(b, Data = Data)
         gg <- function (b, Data) cd(b, ff, Data = Data, eps = 1e-03)
         start <- rep(0, ncol(D[[1]]))
@@ -348,6 +350,8 @@ survfitJM.mvJMbayes <- function (object, newdata, survTimes = NULL, idVar = "id"
                          "links" = links, "sigmas" = sigma.new, "invD" = invD.new, 
                          "Pw" = survMats.last[[i]]$Pw, "trans_Funs" = trans_Funs, 
                          "wk" = wk, "idL3" = which(survMats.last[[i]]$idGK_fast) - 1)
+            if (is.null(Data$gammas))
+                Data$gammas <- numeric(0)
             a <- min(exp(log_post_RE_svft(p.b, Data = Data) + dmvt.old - 
                              log_post_RE_svft(b.old[i, ], Data = Data) - dmvt.prop), 1)
             ind <- runif(1) <= a
@@ -367,6 +371,8 @@ survfitJM.mvJMbayes <- function (object, newdata, survTimes = NULL, idVar = "id"
                               "gammas" = gammas.new, "alphas" = alphas.new, 
                               "Pw" = survMats[[i]][[l]][["Pw"]], "trans_Funs" = trans_Funs, 
                               "wk" = wk)
+                if (is.null(Datal$gammas))
+                    Datal$gammas <- numeric(0)
                 logS.pred[l] <- survPred_svft_2(b.new[i, ], Data = Datal)
             }
             SS[[i]] <- if (log) logS.pred else exp(cumsum(logS.pred))
@@ -451,9 +457,10 @@ print.survfit.mvJMbayes <- function (x, ...) {
 
 ##########################################################################################
 
-plot.survfit.mvJMbayes <- function (x, split = c(1, 1), which_subjects = NULL,
-                                    surv_in_all = TRUE, main = NULL, include.y = TRUE,
-                                    xlab = "Time", ylab = NULL, zlab = "Event-Free Probability",
+plot.survfit.mvJMbayes <- function (x, split = c(1, 1), which_subjects = NULL, which_outcomes = NULL,
+                                    surv_in_all = TRUE, include.y = TRUE, fun = NULL, 
+                                    main = NULL, xlab = "Time", ylab = NULL, 
+                                    zlab = "Event-Free Probability",
                                     include_CI = TRUE, fill_area_CI = TRUE, 
                                     col_points = "black", pch_points = 1,
                                     col_lines = "red", col_lines_CI = "black", 
@@ -471,6 +478,11 @@ plot.survfit.mvJMbayes <- function (x, split = c(1, 1), which_subjects = NULL,
         surv <- c(1, summ[, "Mean"])
         low <- c(1, summ[, "Lower"])
         upp <- c(1, summ[, "Upper"])
+        if (!is.null(fun) && is.function(fun)) {
+            surv <- fun(surv)
+            low <- fun(low)
+            upp <- fun(upp)
+        }
         plot(times, surv, col = col_lines, type = "l", ylim = c(0.0, 1),
              lwd = 2, xlim = xlim, axes = FALSE)
         box()
@@ -500,11 +512,20 @@ plot.survfit.mvJMbayes <- function (x, split = c(1, 1), which_subjects = NULL,
             valid_subjects <- which_subjects
         }
     }
+    valid_outcomes <- seq_len(n_outcomes)
+    if (!is.null(which_outcomes)) {
+        if (!all(which_outcomes %in% valid_outcomes)) {
+            stop("'which_outcomes' must be an integer vector with possible values: ",
+                 paste(valid_outcomes, collapse = ", "))
+        } else {
+            valid_outcomes <- which_outcomes
+        }
+    }
     for (i in valid_subjects) {
         opar <- par(no.readonly = TRUE, mfcol = split, oma = c(3, 3, 2, 3), 
                     mar = c(0, 0, 0, 0), mgp = c(3, 0.4, 0), tcl = -0.25)
         if (include.y) {
-            for (j in seq_len(n_outcomes)) {
+            for (j in valid_outcomes) {
                 obs_times <- x$obs.times[[i]]
                 y <- x$y[[i]][[j]]
                 if (fact_y <- is.factor(y)) {

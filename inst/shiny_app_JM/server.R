@@ -5,7 +5,7 @@ shinyServer(function(input, output) {
             inFile <- input$RDfile
             load(inFile$datapath)
             objs <- ls()
-            ss <- sapply(objs, function (o) class(get(o))) == "JMbayes"
+            ss <- sapply(objs, function (o) class(get(o))) %in% c("JMbayes", "mvJMbayes")
             if (all(!ss)) {
                 stop("\nIt seems that there is no joint model fitted by jointModelBayes() ", 
                      "in the workspace that you loaded ...")
@@ -34,14 +34,36 @@ shinyServer(function(input, output) {
             get(objs[input$model])
         }
     })
+    
+    output$outcomeChoose <- renderUI({
+        if (!is.null(input$RDfile) && !is.null(input$model)) {
+            object <- loadObject()
+            if (inherits(object, "mvJMbayes")) {
+                components <- object$model_info$mvglmer_components
+                outcomes <- components[grep("respVar", names(components), fixed = TRUE)]
+                names(outcomes) <- unlist(outcomes, use.names = FALSE)
+                outcomes[] <- lapply(seq_along(outcomes), function (i) i)
+                selectInput("outcome", "Choose outcome:", outcomes, outcomes[1L])
+            }
+        }
+    })
         
     dataObject <- reactive({
         if (!is.null(input$RDfile) && !is.null(input$model)) {
             object <- loadObject()
-            forms <- object$Forms[c("formYx", "formYz", "formT")]
-            forms$formT <- reformulate(attr(delete.response(object$Terms$termsT), "term.labels"))
-            nams <- unique(unlist(lapply(forms, all.vars), use.names = FALSE))
-            d <- object$Data$data[1:3, c(nams)]
+            if (inherits(object, "JMbayes")) {
+                forms <- object$Forms[c("formYx", "formYz", "formT")]
+                forms$formT <- reformulate(attr(delete.response(object$Terms$termsT), "term.labels"))
+                nams <- unique(unlist(lapply(forms, all.vars), use.names = FALSE))
+                d <- object$Data$data[1:3, c(nams)]
+            } else {
+                mvglmer_components <- object$model_info$mvglmer_components
+                Terms_comp <- mvglmer_components[grep("Term", names(mvglmer_components))]
+                mvglmer_vars <- unlist(lapply(Terms_comp, all.vars), use.names = FALSE)
+                cox_vars <- all.vars(delete.response(object$model_info$coxph_components$Terms))
+                nams <- unique(c(mvglmer_vars, cox_vars))
+                d <- object$model_info$mvglmer_components$data[1:3, c(nams)]
+            }
             d[] <- lapply(d, function (x) {x[] <- NA; x})
             d
         }
@@ -59,10 +81,11 @@ shinyServer(function(input, output) {
                 tt <- try(inData <- read.csv(input$patientFile$datapath, sep = input$sep, 
                                              quote=input$quote, dec = input$dec), TRUE)
                 if (!inherits(tt, "try-error")) {
-                    inData <- cbind(inData, id = rep(1, nrow(inData)))
                     f <- function (f, l) factor(f, levels = l)
                     inData[namsFactors] <- mapply(f, inData[namsFactors], 
                                                   levelsF[namsFactors], SIMPLIFY = FALSE)
+                    inData <- inData[names(inData) %in% names(d)]
+                    inData$id <- rep(1, nrow(inData))
                     inData
                 }
             }
@@ -84,7 +107,7 @@ shinyServer(function(input, output) {
         if (!is.null(input$patientFile)) {
             object <- loadObject()
             nd <- ND()
-            times <- nd[[object$timeVar]]
+            times <- if (inherits(object, "JMbayes")) nd[[object$timeVar]] else nd[[object$model_info$timeVar]]
             if (!is.null(times))
                 numericInput("lasttime", "Last time point without event:", 
                              round(max(times, na.rm = TRUE), 2))
@@ -243,7 +266,8 @@ shinyServer(function(input, output) {
             nd <- ND()
             n <- nrow(nd)
             lastTimeUser <- input$lasttime
-            lastTimeData <- max(nd[[object$timeVar]])
+            lastTimeData <- if (inherits(object, "JMbayes")) max(nd[[object$timeVar]]) 
+            else max(nd[[object$model_info$timeVar]])
             sfits <- vector("list", n)
             for (i in 1:n) {
                 lt <- if (i == n && !is.na(lastTimeUser) && lastTimeUser > lastTimeData) 
@@ -261,7 +285,8 @@ shinyServer(function(input, output) {
             nd <- ND()
             n <- nrow(nd)
             lastTimeUser <- input$lasttime
-            lastTimeData <- max(nd[[object$timeVar]])
+            lastTimeData <- if (inherits(object, "JMbayes")) max(nd[[object$timeVar]]) 
+            else max(nd[[object$model_info$timeVar]])
             lfits <- vector("list", n)
             for (i in 1:n) {
                 lt <- if (i == n && !is.na(lastTimeUser) && lastTimeUser > lastTimeData) 
@@ -282,7 +307,8 @@ shinyServer(function(input, output) {
             lastTimeUser <- input$lasttime
             sfits <- vector("list", n)
             for (i in 1:n) {
-                lastTimeData <- max(nd[1:i, object$timeVar])
+                timeVar <- if (inherits(object, "JMbayes")) object$timeVar else object$model_info$timeVar
+                lastTimeData <- max(nd[1:i, timeVar])
                 target.time <- if (!is.na(input$windowTime)) lastTimeData + input$windowTime else input$time
                 lt <- if (i == n && !is.na(lastTimeUser) && lastTimeUser > lastTimeData) 
                     lastTimeUser else NULL
@@ -377,20 +403,32 @@ shinyServer(function(input, output) {
                     sfits. <- sfits()
                     nn <- if(is.na(input$obs)) length(sfits.) else input$obs
                     if (input$TypePlot == "surv") {
-                        plot(sfits.[[nn]], estimator = "mean", conf.int = TRUE, fill.area = TRUE, 
-                             include.y = TRUE, lwd = 2, ask = FALSE, cex = 2, main = "")                
+                        if (inherits(sfits.[[nn]], "survfit.mvJMbayes")) {
+                            plot(sfits.[[nn]], which_outcomes = as.numeric(input$outcome))
+                        } else {
+                            plot(sfits.[[nn]], estimator = "mean", conf.int = TRUE, 
+                                 fill.area = TRUE, include.y = TRUE, lwd = 2, ask = FALSE, 
+                                 cex = 2, main = "")                
+                        }
                     }
                     if (input$TypePlot == "cumInc") {
-                        plot(sfits.[[nn]], estimator = "mean", conf.int = TRUE, fill.area = TRUE, 
-                             include.y = TRUE, lwd = 2, ask = FALSE, cex = 2, main = "",
-                             fun = function (s) 1 - s, ylab = "Cumulative Incidence")                
+                        if (inherits(sfits.[[nn]], "survfit.mvJMbayes")) {
+                            plot(sfits.[[nn]], which_outcomes = as.numeric(input$outcome),
+                                 fun = function (s) 1 - s)
+                        } else {
+                            plot(sfits.[[nn]], estimator = "mean", conf.int = TRUE, 
+                                 fill.area = TRUE, include.y = TRUE, lwd = 2, ask = FALSE,
+                                 cex = 2, main = "", fun = function (s) 1 - s, 
+                                 ylab = "Cumulative Incidence")
+                        }
                     }
                     if (!is.na(input$windowTime) || !is.na(input$time)) {
                         object <- loadObject()
                         nd <- ND()
                         nr <- nrow(nd)
                         lastTimeUser <- input$lasttime
-                        lastTimeData <- max(nd[1:nn, object$timeVar])
+                        timeVar <- if (inherits(object, "JMbayes")) object$timeVar else object$model_info$timeVar
+                        lastTimeData <- max(nd[1:nn, timeVar])
                         target.time <- if (nn == nr && !is.na(lastTimeUser) && 
                                                lastTimeUser > lastTimeData) {
                             if (!is.na(input$windowTime)) lastTimeUser + input$windowTime else input$time
@@ -405,7 +443,7 @@ shinyServer(function(input, output) {
                 lfits. <- lfits()
                 require("lattice")
                 nn <- if(is.na(input$obs)) length(lfits.) else input$obs
-                timeVar <- object$timeVar
+                timeVar <- if (inherits(object, "JMbayes")) object$timeVar else object$model_info$timeVar
                 resp <- paste(object$Forms$formYx)[2L]
                 tv <- lfits.[[nn]][[timeVar]]
                 lastTimeData <- with(lfits.[[nn]], tv[!is.na(low)][1])
@@ -421,7 +459,8 @@ shinyServer(function(input, output) {
                     nd <- ND()
                     nr <- nrow(nd)
                     lastTimeUser <- input$lasttime
-                    lastTimeData <- max(nd[1:nn, object$timeVar])
+                    timeVar <- if (inherits(object, "JMbayes")) object$timeVar else object$model_info$timeVar
+                    lastTimeData <- max(nd[1:nn, timeVar])
                     if (nn == nr && !is.na(lastTimeUser) && 
                                            lastTimeUser > lastTimeData) {
                         if (!is.na(input$windowTime)) lastTimeUser + input$windowTime else input$time
@@ -517,7 +556,8 @@ shinyServer(function(input, output) {
                             nd <- ND()
                             nr <- nrow(nd)
                             lastTimeUser <- input$lasttime
-                            lastTimeData <- max(nd[1:nn, object$timeVar])
+                            timeVar <- if (inherits(object, "JMbayes")) object$timeVar else object$model_info$timeVar
+                            lastTimeData <- max(nd[1:nn, timeVar])
                             target.time <- if (nn == nr && !is.na(lastTimeUser) && 
                                                    lastTimeUser > lastTimeData) {
                                 if (!is.na(input$windowTime)) lastTimeUser + input$windowTime else input$time
@@ -532,7 +572,7 @@ shinyServer(function(input, output) {
                     lfits. <- lfits()
                     require("lattice")
                     nn <- if(is.na(input$obs)) length(lfits.) else input$obs
-                    timeVar <- object$timeVar
+                    timeVar <- if (inherits(object, "JMbayes")) object$timeVar else object$model_info$timeVar
                     resp <- paste(object$Forms$formYx)[2L]
                     tv <- lfits.[[nn]][[timeVar]]
                     lastTimeData <- with(lfits.[[nn]], tv[!is.na(low)][1])
@@ -548,7 +588,8 @@ shinyServer(function(input, output) {
                         nd <- ND()
                         nr <- nrow(nd)
                         lastTimeUser <- input$lasttime
-                        lastTimeData <- max(nd[1:nn, object$timeVar])
+                        timeVar <- if (inherits(object, "JMbayes")) object$timeVar else object$model_info$timeVar
+                        lastTimeData <- max(nd[1:nn, timeVar])
                         if (nn == nr && !is.na(lastTimeUser) && 
                                 lastTimeUser > lastTimeData) {
                             if (!is.na(input$windowTime)) lastTimeUser + input$windowTime else input$time
