@@ -19,11 +19,14 @@
     cex.axis.z = 1, cex.lab.z = 1, xlim = NULL)
     
 \method{plot}{survfit.mvJMbayes}(x, split = c(1, 1), which_subjects = NULL, 
-    which_outcomes = NULL, surv_in_all = TRUE, include.y = TRUE, fun = NULL, 
+    which_outcomes = NULL, surv_in_all = TRUE, include.y = TRUE, fun = NULL,
+    abline = NULL,
     main = NULL, xlab = "Time", ylab = NULL, zlab = "Event-Free Probability",
     include_CI = TRUE, fill_area_CI = TRUE, col_points = "black", 
     pch_points = 1, col_lines = "red", col_lines_CI = "black", 
-    col_fill_CI = "lightgrey", lwd_lines = 2, lty_lines_CI = 2, \dots)
+    col_fill_CI = "lightgrey", lwd_lines = 2, lty_lines_CI = 2, 
+    cex_xlab = 1, cex_ylab = 1, cex_zlab = 1, cex_main = 1, 
+    cex_axis = 1, \dots)
 }
 
 \arguments{
@@ -45,6 +48,7 @@
   \item{surv_in_all}{logical; should the survival function be included in all panels.}
   \item{fun}{a vectorized function defining a transformation of the survival curve. For 
     example, with \code{fun=log} the log-survival curve is drawn.}
+  \item{abline}{a list with arguments to \code{abline()}.}
   \item{invlink}{a function to transform the fitted values of the longitudinal outcome.}
   \item{conf.int, include_CI}{logical; if \code{TRUE}, then a pointwise confidence 
     interval is included in the plot.}
@@ -75,6 +79,8 @@
   \item{legend}{logical; if \code{TRUE}, a legend is included in the plot.}
   \item{cex.axis.z, cex.lab.z}{the par \code{cex} argument for the axis at side 4, 
     when \code{include.y = TRUE}.}
+  \item{cex_xlab, cex_ylab, cex_zlab, cex_main, cex_axis}{the par \code{cex} argument for the axis
+   in side 1 (x-axis), side 2 (y-axis), side 4 (z-axis) and the title of the plot.}
   \item{xlim}{the par \code{xlim} argument.}
   \item{\dots}{extra graphical parameters passed to \code{plot()}.}
 }
