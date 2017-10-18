@@ -6,6 +6,10 @@
 \alias{aucJM.mvJMbayes}
 \alias{rocJM.JMbayes}
 \alias{rocJM.mvJMbayes}
+\alias{find_thresholds}
+\alias{find_thresholds.mvJMbayes}
+\alias{predict_eventTime}
+\alias{predict_eventTime.mvJMbayes}
 
 
 \title{Time-Dependent ROCs and AUCs for Joint Models}
@@ -31,6 +35,17 @@ rocJM(object, newdata, Tstart, \dots)
 
 \method{rocJM}{mvJMbayes}(object, newdata, Tstart, Thoriz = NULL, 
     Dt = NULL, idVar = "id", M = 100, \dots)
+    
+predict_eventTime(object, newdata, cut_points, \dots)
+
+\method{predict_eventTime}{mvJMbayes}(object, newdata, cut_points, 
+    idVar = "id", M = 500L, low_percentile = 0.025, \ldots)
+
+find_thresholds(object, newdata, Dt, \dots)
+
+\method{find_thresholds}{mvJMbayes}(object, newdata, Dt, idVar = "id", 
+    M = 200L, variability_threshold = NULL,
+    n_cores =  max(1, parallel::detectCores() - 2), \ldots)
 }
 
 \arguments{
@@ -49,6 +64,14 @@ rocJM(object, newdata, Tstart, \dots)
   \item{simulate}{logical; if \code{TRUE}, a Monte Carlo approach is used to estimate survival probabilities. If \code{FALSE},
     a first order estimator is used instead. See \code{\link{survfitJM}} for mote details.}
   \item{M}{a numeric scalar denoting the number of Monte Carlo samples; see \code{\link{survfitJM}} for mote details.}
+  \item{cut_points}{a numeric matrix with first column time-points followed by other columns of 
+  optimal cut-points from an ROC curve.}
+  \item{variability_threshold}{numeric value denoting the treshold in the spread of the 
+  posterior distribution calculated from the 2.5\% percentile to the median. Default is
+  the 25\% percentile of the event times distribution.}
+  \item{low_percentile}{a numeric value indicating the percentile based on which it will
+  be judged whether the spread of the posterior predictive distribution is too large.}
+  \item{n_cores}{an integer indicating the number of cores to use for parallel computing.}
   \item{\dots}{additional arguments; currently none is used.}
 }
 

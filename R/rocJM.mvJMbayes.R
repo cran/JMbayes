@@ -18,8 +18,14 @@ rocJM.mvJMbayes <- function (object, newdata, Tstart, Thoriz = NULL, Dt = NULL,
     TermsT <- object$model_info$coxph_components$Terms
     SurvT <- model.response(model.frame(TermsT, newdata)) 
     is_counting <- attr(SurvT, "type") == "counting"
+    is_interval <- attr(SurvT, "type") == "interval"
     Time <- if (is_counting) {
         ave(SurvT[, 2], id, FUN = function (x) tail(x, 1))
+    } else if (is_interval) {
+        Time1 <- SurvT[, "time1"]
+        Time2 <- SurvT[, "time2"]
+        Time <- Time1
+        Time[Time2 != 1] <- Time2[Time2 != 1]
     } else {
         SurvT[, 1]
     }
@@ -41,15 +47,22 @@ rocJM.mvJMbayes <- function (object, newdata, Tstart, Thoriz = NULL, Dt = NULL,
         f <- factor(id, levels = unique(id))
         Time <- tapply(SurvT[, 2], f, tail, 1)
         event <- tapply(SurvT[, 3], f, tail, 1)
-    } else{
+    } else if (is_interval) {
+        Time1 <- SurvT[, "time1"]
+        Time2 <- SurvT[, "time2"]
+        Time <- Time1
+        Time[Time2 != 1] <- Time2[Time2 != 1]
+        Time <- Time[!duplicated(id)]
+        event <- SurvT[!duplicated(id), "status"]
+    } else {
         Time <- SurvT[!duplicated(id), 1]
         event <- SurvT[!duplicated(id), 2]
     }
     names(Time) <- names(event) <- as.character(unique(id))
     # subjects who died before Thoriz
-    ind1 <- Time < Thoriz & event == 1
+    ind1 <- Time < Thoriz & (event == 1 | event == 3)
     # subjects who were censored in the interval (Tstart, Thoriz)
-    ind2 <- Time < Thoriz & event == 0
+    ind2 <- Time < Thoriz & (event == 0 | event == 2)
     ind <- ind1 | ind2
     if (any(ind2)) {
         nams <- unique(names(ind2[ind2]))
@@ -67,8 +80,12 @@ rocJM.mvJMbayes <- function (object, newdata, Tstart, Thoriz = NULL, Dt = NULL,
     }
     # calculate sensitivity and specificity
     thrs <- seq(0, 1, length = 101)
-    TP <- colSums(outer(pi.u.t, thrs, "<") * c(ind)) / sum(ind)
-    FP <- colSums(outer(pi.u.t, thrs, "<") * c(1 - ind)) / sum(1 - ind)
+    nTP <- colSums(outer(pi.u.t, thrs, "<") * c(ind)) 
+    nFN <- sum(ind) - nTP
+    TP <- nTP / sum(ind)
+    nFP <- colSums(outer(pi.u.t, thrs, "<") * c(1 - ind)) 
+    nTN <- sum(1 - ind) - nFP
+    FP <- nFP / sum(1 - ind)
     Q <- colMeans(outer(pi.u.t, thrs, "<"))
     Q. <- 1 - Q
     k.1.0 <- (TP - Q) / Q.
@@ -76,8 +93,14 @@ rocJM.mvJMbayes <- function (object, newdata, Tstart, Thoriz = NULL, Dt = NULL,
     P <- mean(ind)
     P. <- 1 - P
     k.05.0 <- (P * Q. * k.1.0 + P. * Q * k.0.0) / (P * Q. + P. * Q)
-    out <- list(TP = TP, FP = FP, qSN = k.1.0, qSP = k.0.0, qOverall = k.05.0, 
+    f1score <- 2 * nTP / (2 * nTP + nFN + nFP)
+    F1score <- median(thrs[f1score == max(f1score)])
+    youden <- TP - FP
+    Youden <- median(thrs[youden == max(youden)])
+    out <- list(TP = TP, FP = FP, nTP = nTP, nFN = nFN, nFP = nFP, nTN = nTN,
+                qSN = k.1.0, qSP = k.0.0, qOverall = k.05.0, 
                 thrs = thrs, 
+                F1score = F1score, Youden = Youden,
                 Tstart = Tstart, Thoriz = Thoriz, nr = length(unique(id)), 
                 classObject = class(object), nameObject = deparse(substitute(object)))
     class(out) <- "rocJM"

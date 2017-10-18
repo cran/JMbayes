@@ -47,7 +47,26 @@ shinyServer(function(input, output) {
             }
         }
     })
-        
+    
+    load_cutpoints <- reactive({
+        if (!is.null(input$RDfile)) {
+            inFile <- input$RDfile
+            load(inFile$datapath)
+            objs <- ls()
+            if (any(which <- sapply(objs, function (o) class(get(o))) == "ROC_cutoff"))
+                get(objs[which])
+        }
+    })
+    
+    output$predictEventTime <- renderUI({
+        if (!is.null(input$RDfile) && !is.null(input$patientFile)) {
+            inFile <- input$RDfile
+            load(inFile$datapath)
+            if (any(sapply(ls(), function (o) class(get(o))) == "ROC_cutoff"))
+                actionButton("predictEvent", label = "Plan Next Visit", "success")
+        }
+    })
+
     dataObject <- reactive({
         if (!is.null(input$RDfile) && !is.null(input$model)) {
             object <- loadObject()
@@ -89,6 +108,13 @@ shinyServer(function(input, output) {
                     inData
                 }
             }
+        }
+    })
+    
+    ND_all <- reactive({
+        if (!is.null(input$RDfile) && !is.null(input$model) && !is.null(input$patientFile)) {
+            read.csv(input$patientFile$datapath, sep = input$sep, 
+                     quote=input$quote, dec = input$dec)[-1]
         }
     })
     
@@ -270,7 +296,7 @@ shinyServer(function(input, output) {
             else max(nd[[object$model_info$timeVar]])
             sfits <- vector("list", n)
             for (i in 1:n) {
-                lt <- if (i == n && !is.na(lastTimeUser) && lastTimeUser > lastTimeData) 
+                lt <- if (i == n && !is.na(lastTimeUser)) 
                     lastTimeUser else NULL
                 sfits[[i]] <- survfitJM(object, newdata = nd[1:i, ], M = input$M, 
                                         last.time = lt)
@@ -289,7 +315,7 @@ shinyServer(function(input, output) {
             else max(nd[[object$model_info$timeVar]])
             lfits <- vector("list", n)
             for (i in 1:n) {
-                lt <- if (i == n && !is.na(lastTimeUser) && lastTimeUser > lastTimeData) 
+                lt <- if (i == n && !is.na(lastTimeUser)) 
                     lastTimeUser else NULL
                 lfits[[i]] <- predict(object, newdata = nd[1:i, ], M = input$M, 
                                       returnData = TRUE, type = "Subject", 
@@ -310,9 +336,9 @@ shinyServer(function(input, output) {
                 timeVar <- if (inherits(object, "JMbayes")) object$timeVar else object$model_info$timeVar
                 lastTimeData <- max(nd[1:i, timeVar])
                 target.time <- if (!is.na(input$windowTime)) lastTimeData + input$windowTime else input$time
-                lt <- if (i == n && !is.na(lastTimeUser) && lastTimeUser > lastTimeData) 
+                lt <- if (i == n && !is.na(lastTimeUser)) 
                     lastTimeUser else NULL
-                if (i == n && !is.na(lastTimeUser) && lastTimeUser > lastTimeData && !is.na(input$windowTime))
+                if (i == n && !is.na(lastTimeUser) && !is.na(input$windowTime))
                     target.time <- lastTimeUser + input$windowTime
                 if (target.time > lastTimeData)
                     sfits[[i]] <- survfitJM(object, newdata = nd[1:i, ], 
@@ -325,13 +351,9 @@ shinyServer(function(input, output) {
     
     output$contents <- renderTable({
         if (!is.null(input$RDfile)) {
-            nd <- ND()
             if (!is.null(input$patientFile)) {
-                tt <- try(nd[, head(1:ncol(nd), -1)], TRUE)
-                if (!inherits(tt, "try-error"))
-                    nd <- tt
+                ND_all()
             }
-            nd
         }
     })
     
@@ -366,6 +388,31 @@ shinyServer(function(input, output) {
         sprobs()
     })
     
+    show_predEvent <- reactiveValues(show = FALSE)
+    
+    observeEvent(input$predictEvent, {
+        show_predEvent$show <- TRUE
+    })
+    
+    observeEvent(input$patientFile, {
+        show_predEvent$show <- FALSE
+    })
+    
+    predictedTime <- reactive({
+        if (show_predEvent$show) {
+            object <- loadObject()
+            nd <- ND()
+            cpoints <- load_cutpoints()
+            predict_eventTime(object, nd, cpoints)
+        }
+    })
+    
+   output$ws <- renderPrint({
+       if (!is.null(input$patientFile)) {
+           includeHTML("white_space.Rhtml")
+       }
+   })
+   
     output$plot <- renderPlot({
         if (!is.null(input$patientFile)) {
             if (input$TypePlot != 'longitudinal') {
@@ -402,34 +449,51 @@ shinyServer(function(input, output) {
                 } else {
                     sfits. <- sfits()
                     nn <- if(is.na(input$obs)) length(sfits.) else input$obs
+                    object <- loadObject()
+                    nd <- ND()
+                    nr <- nrow(nd)
+                    lastTimeUser <- input$lasttime
+                    timeVar <- if (inherits(object, "JMbayes")) object$timeVar else object$model_info$timeVar
+                    lastTimeData <- max(nd[1:nn, timeVar])
                     target.time <- if (!is.na(input$windowTime) || !is.na(input$time)) {
-                        object <- loadObject()
-                        nd <- ND()
-                        nr <- nrow(nd)
-                        lastTimeUser <- input$lasttime
-                        timeVar <- if (inherits(object, "JMbayes")) object$timeVar else object$model_info$timeVar
-                        lastTimeData <- max(nd[1:nn, timeVar])
-                        if (nn == nr && !is.na(lastTimeUser) && lastTimeUser > lastTimeData) {
+                        if (nn == nr && !is.na(lastTimeUser)) {
                             if (!is.na(input$windowTime)) lastTimeUser + input$windowTime else input$time
                         } else {
                             if (!is.na(input$windowTime)) lastTimeData + input$windowTime else input$time
                         }
                     } else -10
+                    attr(target.time, "col") <- "red"
+                    if (show_predEvent$show) {
+                        pdEvTime <- predictedTime()
+                        target.time <- c(target.time, pdEvTime)
+                        attr(target.time, "col") <- c("red", "blue")
+                    }
                     if (input$TypePlot == "surv") {
                         if (inherits(sfits.[[nn]], "survfit.mvJMbayes")) {
-                            plot(sfits.[[nn]], which_outcomes = as.numeric(input$outcome),
-                                 abline = list(v = target.time, lty = 2, col = 2, lwd = 2))
+                            if (lastTimeUser < lastTimeData) {
+                                sp <- c(2, 1) 
+                                surv_in_all <- FALSE
+                            } else {
+                                sp <- c(1, 1)
+                                surv_in_all <- TRUE
+                            }
+                            plot(sfits.[[nn]], split = sp, surv_in_all = surv_in_all,
+                                 which_outcomes = as.numeric(input$outcome), main = "",
+                                 abline = list(v = target.time, lty = 2, lwd = 2,
+                                               col = attr(target.time, "col")))
                         } else {
                             plot(sfits.[[nn]], estimator = "mean", conf.int = TRUE, 
                                  fill.area = TRUE, include.y = TRUE, lwd = 2, ask = FALSE, 
                                  cex = 2, main = "")
-                            abline(v = target.time, lty = 2, col = 2, lwd = 2)
+                            abline(v = target.time, lty = 2, lwd = 2,
+                                   col = attr(target.time, "col"))
                         }
                     }
                     if (input$TypePlot == "cumInc") {
                         if (inherits(sfits.[[nn]], "survfit.mvJMbayes")) {
                             plot(sfits.[[nn]], which_outcomes = as.numeric(input$outcome),
                                  fun = function (s) 1 - s, zlab = "Cumulative Incidence",
+                                 main = "",
                                  abline = list(v = target.time, lty = 2, col = 2, lwd = 2))
                         } else {
                             plot(sfits.[[nn]], estimator = "mean", conf.int = TRUE, 
@@ -463,8 +527,7 @@ shinyServer(function(input, output) {
                     lastTimeUser <- input$lasttime
                     timeVar <- if (inherits(object, "JMbayes")) object$timeVar else object$model_info$timeVar
                     lastTimeData <- max(nd[1:nn, timeVar])
-                    if (nn == nr && !is.na(lastTimeUser) && 
-                                           lastTimeUser > lastTimeData) {
+                    if (nn == nr && !is.na(lastTimeUser)) {
                         if (!is.na(input$windowTime)) lastTimeUser + input$windowTime else input$time
                     } else {
                         if (!is.na(input$windowTime)) lastTimeData + input$windowTime else input$time
@@ -560,8 +623,7 @@ shinyServer(function(input, output) {
                             lastTimeUser <- input$lasttime
                             timeVar <- if (inherits(object, "JMbayes")) object$timeVar else object$model_info$timeVar
                             lastTimeData <- max(nd[1:nn, timeVar])
-                            target.time <- if (nn == nr && !is.na(lastTimeUser) && 
-                                                   lastTimeUser > lastTimeData) {
+                            target.time <- if (nn == nr && !is.na(lastTimeUser)) {
                                 if (!is.na(input$windowTime)) lastTimeUser + input$windowTime else input$time
                             } else {
                                 if (!is.na(input$windowTime)) lastTimeData + input$windowTime else input$time
@@ -592,8 +654,7 @@ shinyServer(function(input, output) {
                         lastTimeUser <- input$lasttime
                         timeVar <- if (inherits(object, "JMbayes")) object$timeVar else object$model_info$timeVar
                         lastTimeData <- max(nd[1:nn, timeVar])
-                        if (nn == nr && !is.na(lastTimeUser) && 
-                                lastTimeUser > lastTimeData) {
+                        if (nn == nr && !is.na(lastTimeUser)) {
                             if (!is.na(input$windowTime)) lastTimeUser + input$windowTime else input$time
                         } else {
                             if (!is.na(input$windowTime)) lastTimeData + input$windowTime else input$time

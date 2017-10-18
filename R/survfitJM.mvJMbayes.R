@@ -129,7 +129,17 @@ survfitJM.mvJMbayes <- function (object, newdata, survTimes = NULL, idVar = "id"
     Formulas <- object$model_info$Formulas
     #nams_Formulas <- names(Formulas)
     #nams_Formulas <- gsub("_[^_]+$", "", nams_Formulas)
-    outcome <- sapply(respVars, grep, x = names(Formulas), fixed = TRUE)
+    #outcome <- match(nams_Formulas, respVars)
+    #outcome <- sapply(respVars, grep, x = names(Formulas), fixed = TRUE)
+    find_outcome <- function (nams_Formulas, repsVars) {
+        out <- numeric(length(nams_Formulas))
+        for (i in seq_along(respVars)) {
+            ind <- grep(respVars[i], nams_Formulas, fixed = TRUE)
+            out[ind] <- i
+        }
+        out
+    }
+    outcome <- find_outcome(names(Formulas), respVars)
     indFixed <- lapply(Formulas, "[[", "indFixed")
     indRandom <- lapply(Formulas, "[[", "indRandom")
     RE_inds <- object$model_info$RE_inds
@@ -401,9 +411,11 @@ survfitJM.mvJMbayes <- function (object, newdata, survTimes = NULL, idVar = "id"
         y[[i]] <- lapply(y., "[[", i)
     }
     newdata. <- do.call(rbind, mapply(function (d, t) {
-        d. <- rbind(d, d[nrow(d), ])
-        d.[[timeVar]][nrow(d.)] <- t
-        d.
+        if (d[[timeVar]][nrow(d)] < t) {
+            d. <- rbind(d, d[nrow(d), ])
+            d.[[timeVar]][nrow(d.)] <- t
+            d.
+        } else d
     }, split(newdata, id.), last.time, SIMPLIFY = FALSE))
     id. <- newdata.[[idVar]]
     id. <- match(id., unique(id.))
@@ -498,8 +510,10 @@ plot.survfit.mvJMbayes <- function (x, split = c(1, 1), which_subjects = NULL, w
         }
         lines(times, surv, lwd = lwd_lines, col = col_lines)
         abline(v = x$last.time[[i]], lty = 2)
-        if (!is.null(abline))
+        if (!is.null(abline)) {
             abline(v = abline$v, lty = abline$lty, lwd = abline$lwd, col = abline$col)
+            if (xaxis) axis(1, at = round(abline$v, 1), cex = cex_axis)
+        }
         if (xaxis) axis(1, cex.axis = cex_axis)
         axis(4, cex.axis = cex_axis)
         mtext(zlab, side = 4, line = 1.8, outer = outer, cex = cex_zlab)
@@ -563,9 +577,14 @@ plot.survfit.mvJMbayes <- function (x, split = c(1, 1), which_subjects = NULL, w
         if (!include.y || !surv_in_all) {
             add_surv(outer = FALSE)
         }
-        if (!include.y || !added_xlab) {
+        if ((!include.y || !added_xlab)) {
             mtext(xlab, side = 1,line = 1.5, outer = TRUE, cex = cex_xlab)
             mtext(main[i], side = 3, line = 0.8, outer = TRUE, cex = cex_main)
+        }
+        if (length(valid_outcomes) == 1) {
+            axis(1, cex.axis = cex_axis)
+            if (!is.null(abline)) 
+                axis(1, at = round(abline$v, 1), cex = cex_axis)
         }
         par(opar)
     }
