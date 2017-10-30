@@ -7,11 +7,6 @@ survfitJM.mvJMbayes <- function (object, newdata, survTimes = NULL, idVar = "id"
         stop("'newdata' must be a data.frame with more than one rows.\n")
     if (is.null(newdata[[idVar]]))
         stop("'idVar' not in 'newdata'.\n")
-    last_rows <- object$model_info$functions$last_rows
-    right_rows <- object$model_info$functions$right_rows
-    Xbetas_calc <- object$model_info$functions$Xbetas_calc
-    designMatLong <- object$model_info$functions$designMatLong
-    get_fun <- object$model_info$functions$get_fun
     timeVar <- object$model_info$timeVar
     TermsU <- object$model_info$coxph_components$TermsU
     control <- object$control
@@ -23,6 +18,7 @@ survfitJM.mvJMbayes <- function (object, newdata, survTimes = NULL, idVar = "id"
     componentsL <- object$model_info$mvglmer_components
     componentsS <- object$model_info$coxph_components
     TermsL <- componentsL[grep("Terms", names(componentsL), fixed = TRUE)]
+    TermsL <- lapply(TermsL, function (x) {environment(x) <- .GlobalEnv; x})
     TermsFormulas_fixed <- object$model_info$coxph_components$TermsFormulas_fixed
     TermsFormulas_random <- object$model_info$coxph_components$TermsFormulas_random
     build_model_matrix <- function (Terms, data) {
