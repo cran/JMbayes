@@ -18,7 +18,7 @@ survfitJM.mvJMbayes <- function (object, newdata, survTimes = NULL, idVar = "id"
     componentsL <- object$model_info$mvglmer_components
     componentsS <- object$model_info$coxph_components
     TermsL <- componentsL[grep("Terms", names(componentsL), fixed = TRUE)]
-    TermsL <- lapply(TermsL, function (x) {environment(x) <- .GlobalEnv; x})
+    TermsL <- lapply(TermsL, function (x) {environment(x) <- parent.frame(); x})
     TermsFormulas_fixed <- object$model_info$coxph_components$TermsFormulas_fixed
     TermsFormulas_random <- object$model_info$coxph_components$TermsFormulas_random
     build_model_matrix <- function (Terms, data) {
@@ -439,7 +439,7 @@ survfitJM.mvJMbayes <- function (object, newdata, survTimes = NULL, idVar = "id"
     y[] <- lapply(y, function (x, nam) {names(x) <- nam; x}, nam = respVars)
     fitted.y[] <- lapply(fitted.y, function (x, nam) {names(x) <- nam; x}, nam = respVars)
     names(families) <- respVars
-    res <- list(summaries = res, survTimes = survTimes, last.time = last.time, 
+    res <- list(summaries = res, full.results = out, survTimes = survTimes, last.time = last.time, 
                 obs.times = obs.times, y = y, M = M, families = families, respVars = respVars,
                 fitted.times = fitted.times, 
                 fitted.y = fitted.y, ry = lapply(componentsL[grep("y", names(componentsL))], FUN = range, na.rm = TRUE), 

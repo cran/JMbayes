@@ -16,7 +16,7 @@ rocJM.mvJMbayes <- function (object, newdata, Tstart, Thoriz = NULL, Dt = NULL,
     id <- newdata[[idVar]]
     id <- match(id, unique(id))
     TermsT <- object$model_info$coxph_components$Terms
-    environment(TermsT) <- .GlobalEnv
+    environment(TermsT) <- parent.frame()#.GlobalEnv
     SurvT <- model.response(model.frame(TermsT, newdata)) 
     is_counting <- attr(SurvT, "type") == "counting"
     is_interval <- attr(SurvT, "type") == "interval"
@@ -27,6 +27,7 @@ rocJM.mvJMbayes <- function (object, newdata, Tstart, Thoriz = NULL, Dt = NULL,
         Time2 <- SurvT[, "time2"]
         Time <- Time1
         Time[Time2 != 1] <- Time2[Time2 != 1]
+        Time
     } else {
         SurvT[, 1]
     }
