@@ -1,6 +1,8 @@
 mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
                                Formulas = list(NULL), Interactions = list(NULL),
-                               transFuns = NULL, priors = NULL, control = NULL, ...) {
+                               transFuns = NULL, priors = NULL, multiState = FALSE, 
+                               data_MultiState = NULL, idVar_MultiState = "id", 
+                               control = NULL, ...) {
     cl <- match.call()
     # control values
     con <- list(temps = 1.0, n_iter = 300, n_burnin = 1000,
@@ -10,7 +12,9 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
                 lng.in.kn = 15L, ordSpline = 4L, diff = 2L, speed_factor = 0.6,
                 GQsurv = "GaussKronrod", GQsurv.k = 15L, seed = 1L,
                 n_cores = max(1, parallel::detectCores() - 1), update_RE = TRUE,
-                light = FALSE)
+                light = FALSE, equal.strata.knots = FALSE, 
+                equal.strata.bound.knots = FALSE,
+                lng.in.kn.multiState = 5L)
     control <- c(control, list(...))
     namC <- names(con)
     con[(namc <- names(control))] <- control
@@ -38,7 +42,7 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
         LongFormat <- FALSE
         TimeLl <- rep(0.0, length(Time))
     }
-    if (typeSurvInf == "counting") {
+    if (typeSurvInf == "counting" && !multiState) {
         if (class(survObject) == 'survreg') {
             stop("Please refit the survival submodel using coxph().\n")
         }
@@ -63,6 +67,33 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
         Terms <- drop.terms(Terms, attr(Terms,"specials")$cluster - 1,
                             keep.response = TRUE)
     }
+    if (typeSurvInf == "counting" && multiState) {
+        if (class(survObject) == 'survreg') {
+            stop("Please refit the survival submodel using coxph(). \n")
+        }
+        if (is.null(survObject$model$cluster)) {
+            stop("you need to refit the Cox and include in the right hand side of the ", 
+                 "formula the 'cluster()' function using as its argument the subjects' ", 
+                 "id indicator. These ids need to be the same as the ones used in the ", 
+                 "data_MultiState dataset. \n")
+        }
+        con$lng.in.kn <- con$lng.in.kn.multiState
+        idT <- survObject$model$cluster
+        LongFormat <- length(idT) > length(unique(idT))
+        TimeL <- TimeLl <- SurvInf[, "start"]
+        fidT <- factor(idT, levels = unique(idT))
+        anyLeftTrunc <- any(TimeL > 1e-07)
+        TimeR <- SurvInf[, "stop"]
+        nT <- length(unique(fidT))
+        nT.long <- length(idT)
+        event <- eventLong <- SurvInf[, "status"]
+        nRisks <- length(unique(survObject$strata))
+        Terms <- drop.terms(Terms, attr(Terms, "specials")$cluster - 1, 
+                            keep.response = TRUE)
+        state.id <- gsub("^strata*\\((.*)\\).*", "\\1", 
+                         colnames(dataS)[grep("^strata", colnames(dataS))])
+        state.id2 <- colnames(dataS)[grep("^strata", colnames(dataS))]
+    }
     if (typeSurvInf == "interval") {
         Time1 <- SurvInf[, "time1"]
         Time2 <- SurvInf[, "time2"]
@@ -81,9 +112,17 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
     wk <- GQsurv$wk
     sk <- GQsurv$sk
     K <- length(sk)
-    P <- if (typeSurvInf == "counting") (Time - TimeL) / 2 else Time / 2
-    st <- if (typeSurvInf == "counting") {
+    if (typeSurvInf == "counting" && !multiState) {
+        P <- (Time - TimeL) / 2
+    } else if (typeSurvInf == "counting" && multiState) {
+        P <- (TimeR - TimeL) / 2
+    } else {
+        P <- Time / 2
+    }
+    st <- if (typeSurvInf == "counting" && !multiState) {
         outer(P, sk) + c(Time + TimeL) / 2
+    } else if (typeSurvInf == "counting" && multiState) {
+        outer(P, sk) + c(TimeR + TimeL) / 2
     } else {
         outer(P, sk + 1)
     }
@@ -91,19 +130,87 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
         P_int <- TimeL / 2
         st_int <- outer(P_int, sk + 1)
     }
-    idGK <- rep(seq_len(nT), each = K)
-    idGK_fast <- c(idGK[-length(idGK)] != idGK[-1L], TRUE)
-    # knots baseline hazard
-    kn <- if (is.null(con$knots)) {
-        tt <- if (con$ObsTimes.knots) Time else Time[event == 1]
-        pp <- quantile(tt, c(0.05, 0.95), names = FALSE)
-        tail(head(seq(pp[1L], pp[2L], length.out = con$lng.in.kn), -1L), -1L)
+    if (typeSurvInf == "counting" && multiState) {
+        idGK <- rep(seq_along(TimeR), each = K)
+        strat <- survObject$strata
+        n.strat <- length(levels(strat))
+        split.TimeR <- split(TimeR, strat)
+        split.TimeL <- split(TimeL, strat)
+        ind.t <- unlist(tapply(idT, idT, 
+                               FUN = function(x) 
+                                   c(as.logical(data_MultiState[data_MultiState[, idVar_MultiState] %in% x, "status"]))))
+        Time <- TimeR
+        idGK_fast <- c(idGK[-length(idGK)] != idGK[-1L], TRUE)
     } else {
-        con$knots
+        idGK <- rep(seq_len(nT), each = K)
+        idGK_fast <- c(idGK[-length(idGK)] != idGK[-1L], TRUE)
     }
-    kn <- kn[kn < max(Time)]
-    rr <- sort(c(rep(range(Time, st), con$ordSpline), kn))
-    con$knots <- rr
+    if (typeSurvInf == "counting" && multiState) {
+        kn <- if (con$equal.strata.knots) {
+            kk <- if (is.null(con$knots)) {
+                tt <- if (con$ObsTimes.knots) Time else Time[ind.t]
+                pp <- quantile(tt, c(0.05, 0.95), names = FALSE)
+                tail(head(seq(pp[1L], pp[2L], length.out = con$lng.in.kn), -1L), -1L)
+            } else {
+                con$knots
+            }
+            kk <- kk[kk < max(Time)]
+            if (!con$equal.strata.bound.knots) {
+                st.split <- split(st, strat)
+                rr <- mapply(FUN = function(x, y) sort(c(rep(range(x, y), con$ordSpline), kk)), 
+                             split.TimeR, st.split, SIMPLIFY = FALSE)
+                
+            } else {
+                rr <- rep(list(sort(c(rep(range(Time, st), con$ordSpline), kk))), n.strat)
+            }
+            names(rr) <- names(split.TimeR)
+            con$knots <- rr
+        } else {
+            sptt <- if (con$ObsTimes.knots) {
+                split(TimeR[event == 1], strat[event == 1])
+            } else {
+                mapply(function(x, y) {x[y]}, split.TimeR, split(ind.t, strat))
+            }
+            if (!con$equal.strata.bound.knots) {
+                st.split <- split(st, strat)
+                rr <- mapply(FUN =function (t, y){
+                    kk <- if (is.null(con$knots)) {
+                        pp <- quantile(t, c(0.05, 0.95), names = FALSE)
+                        tail(head(seq(pp[1L], pp[2L], length.out = con$lng.in.kn), -1L), -1L)
+                    } else {
+                        con$knots
+                    }
+                    kk <- kk[kk < max(t)]
+                    sort(c(rep(range(t, y), con$ordSpline), kk))
+                }, sptt, st.split, SIMPLIFY = FALSE)
+            } else {
+                rr <- lapply(sptt, function(t) {
+                    kk <- if (is.null(con$knots)) {
+                        pp <- quantile(t, c(0.05, 0.95), names = FALSE)
+                        tail(head(seq(pp[1L], pp[2L], length.out = con$lng.in.kn), -1L), -1L)
+                    } else {
+                        con$knots
+                    }
+                    kk <- kk[kk < max(t)]
+                    sort(c(rep(range(Time, st), con$ordSpline), kk))
+                })
+                names(rr) <- names(split.TimeR)
+            }
+            con$knots <- rr
+        }
+    } else {
+        # knots baseline hazard
+        kn <- if (is.null(con$knots)) {
+            tt <- if (con$ObsTimes.knots) Time else Time[event == 1]
+            pp <- quantile(tt, c(0.05, 0.95), names = FALSE)
+            tail(head(seq(pp[1L], pp[2L], length.out = con$lng.in.kn), -1L), -1L)
+        } else {
+            con$knots
+        }
+        kn <- kn[kn < max(Time)]
+        rr <- sort(c(rep(range(Time, st), con$ordSpline), kn))
+        con$knots <- rr
+    }
     # build desing matrices for longitudinal process
     dataL <- mvglmerObject$data
     components <- mvglmerObject$components
@@ -121,18 +228,28 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
         stop("variable '", timeVar, "' not in the data.frame extracted from 'mvglmerObject'.\n")
     }
     dataL <- dataL[order(dataL[[idVar]], dataL[[timeVar]]), ]
-    dataL.id <- last_rows(dataL, dataL[[idVar]])
+    if (typeSurvInf == "counting" && multiState) {
+        dataL.id <- right_rows_mstate(dataL, dataL[[timeVar]], dataL[[idVar]], as.matrix(TimeR), idT)
+        dataL.id[[state.id]] <- data_MultiState$trans
+    } else {
+        dataL.id <- last_rows(dataL, dataL[[idVar]])
+    }
     dataL.id[[timeVar]] <- Time
     if (typeSurvInf == "interval") {
         dataL_int.id <- dataL.id
         dataL_int.id[[timeVar]] <- TimeL
     }
-    # create the data set used for the calculation of the cumulative hazard
-    # for the specified Gaussian quadrature points use the rows from the original
-    # longitudinal data set that correspond to these points; this is to account for
-    # time-varying covariates in the longitudinal submodel
-    dataL.id2 <- right_rows(dataL, dataL[[timeVar]], dataL[[idVar]], st)
-    dataL.id2[[timeVar]] <- c(t(st))
+    if (typeSurvInf == "counting" && multiState) {
+        dataL.id2 <- right_rows_mstate(dataL, dataL[[timeVar]], dataL[[idVar]], st, idT)
+        dataL.id2[[timeVar]] <- c(t(st))
+    } else {
+        # create the data set used for the calculation of the cumulative hazard
+        # for the specified Gaussian quadrature points use the rows from the original
+        # longitudinal data set that correspond to these points; this is to account for
+        # time-varying covariates in the longitudinal submodel
+        dataL.id2 <- right_rows(dataL, dataL[[timeVar]], dataL[[idVar]], st)
+        dataL.id2[[timeVar]] <- c(t(st))
+    }
     if (typeSurvInf == "interval") {
         dataL_int.id2 <- right_rows(dataL, dataL[[timeVar]], dataL[[idVar]], st_int)
         dataL_int.id2[[timeVar]] <- c(t(st_int))
@@ -149,19 +266,60 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
         }
         dataS[[idVar]] <- idT
     }
-    dataS.id <- last_rows(dataS, dataS[[idVar]])
-    dataS.id2 <- right_rows(dataS, TimeLl, idT, st)
-    survVars_notin_long <- survVars_notin_long2 <- !names(dataS) %in% names(dataL)
-    survVars_notin_long[names(dataS) == idVar] <- TRUE
-    dataLS <- merge(dataL, dataS.id[survVars_notin_long], all = TRUE, sort = FALSE)
-    dataLS.id <- merge(dataL.id, dataS.id[survVars_notin_long], by = idVar,
-                       all = TRUE, sort = FALSE)
-    dataLS.id[[TimeVar]] <- dataLS.id[[timeVar]]
-    dataS.id2[["id2merge"]] <- paste(dataS.id2[[idVar]], round(c(t(st)), 8), sep = ":")
-    dataL.id2[["id2merge"]] <- paste(dataL.id2[[idVar]], round(c(t(st)), 8), sep = ":")
-    dataLS.id2 <- merge(dataL.id2, dataS.id2[survVars_notin_long2], by = "id2merge",
-                        sort = FALSE, all = FALSE)
-    dataLS.id2[[TimeVar]] <- dataLS.id2[[timeVar]]
+    if (typeSurvInf == "counting" & multiState) {
+        dataS.id <- data_MultiState
+        dataS.split <- split(dataS, strat)
+        st.strat.split <- split(rownames(st), strat)
+        dataS.id.long <- NULL
+        for (i in 1:n.strat) {
+            dataS.id.long[[i]] <- right_rows(dataS.split[[i]], split.TimeL[[i]], dataS.split[[i]][[idVar_MultiState]], 
+                                             st[st.strat.split[[i]], ]) 
+        }
+        dataS.id2 <- do.call(rbind, dataS.id.long)
+        dataS.id2 <- dataS.id2[order(dataS.id2[[idVar_MultiState]]), ]
+        survVars_notin_long <- survVars_notin_long2 <- !names(dataS) %in% names(dataL)
+        survVars_notin_long[names(dataS) == idVar] <- TRUE
+        dataS.id.long2 <- lapply(dataS.split, FUN = function (x) x[survVars_notin_long])
+        dataL.id.split <- split(dataL.id, dataL.id[[state.id]])
+        dataLS.id <- mapply(merge, dataL.id.split, dataS.id.long2, by = idVar, 
+                            all = FALSE, SIMPLIFY = FALSE, sort = FALSE)
+        dataLS.id <- do.call(rbind, dataLS.id)
+        dataLS.id <- dataLS.id[order(dataLS.id[[idVar]]), ]
+        dataLS.id[[TimeVar]] <- dataLS.id[[timeVar]]
+        dataS.id2[["id2merge"]] <- paste(dataS.id2[[idVar]], round(c(t(st)), 8), sep = ":")
+        dataL.id2[["id2merge"]] <- paste(dataL.id2[[idVar]], round(c(t(st)), 8), sep = ":")
+        dataS.id2.split <- split(dataS.id2, dataS.id2[[state.id2]])
+        dataS.id2.split <- lapply(dataS.id2.split, FUN = function (x) x[survVars_notin_long])
+        dataL.id2[[state.id2]] <- rep(dataS.id[[state.id]], each = K)
+        dataL.id2.split <- split(dataL.id2, dataL.id2[[state.id2]])
+        dataLS.id2 <- mapply(merge, dataL.id2.split, dataS.id2.split, by = "id2merge", 
+                             all = FALSE, SIMPLIFY = FALSE, sort = FALSE)
+        dataLS.id2 <- do.call(rbind, dataLS.id2)
+        col.rm1 <- colnames(dataLS.id2)[grep(paste0(state.id2, "*"), colnames(dataLS.id2))]
+        col.rm2 <- colnames(dataLS.id2)[grep(paste0(idVar, ".", "[x | y]"), colnames(dataLS.id2))]
+        col.rm.x <- c(col.rm1[grep("*.x", col.rm1)], col.rm2[grep("*.x", col.rm2)])
+        col.rm.y <- c(col.rm1[grep("*.y", col.rm1)], col.rm2[grep("*.y", col.rm2)])
+        col.rm <- unname(sapply(col.rm.y, FUN = function (x) gsub(".y", "", x)))
+        dataLS.id2 <- dataLS.id2[, !colnames(dataLS.id2) %in% col.rm.x]
+        colnames(dataLS.id2)[colnames(dataLS.id2) %in% col.rm.y] <- col.rm
+        dataLS.id2 <- dataLS.id2[order(dataLS.id2[[idVar]]), ]
+        colnames(dataLS.id2) <- gsub("^strata*\\((.*)\\).*", "\\1", colnames(dataLS.id2))
+        dataLS.id2[[TimeVar]] <- dataLS.id2[[timeVar]]
+    } else {
+        dataS.id <- last_rows(dataS, dataS[[idVar]])
+        dataS.id2 <- right_rows(dataS, TimeLl, idT, st)
+        survVars_notin_long <- survVars_notin_long2 <- !names(dataS) %in% names(dataL)
+        survVars_notin_long[names(dataS) == idVar] <- TRUE
+        dataLS <- merge(dataL, dataS.id[survVars_notin_long], all = TRUE, sort = FALSE)
+        dataLS.id <- merge(dataL.id, dataS.id[survVars_notin_long], by = idVar,
+                           all = TRUE, sort = FALSE)
+        dataLS.id[[TimeVar]] <- dataLS.id[[timeVar]]
+        dataS.id2[["id2merge"]] <- paste(dataS.id2[[idVar]], round(c(t(st)), 8), sep = ":")
+        dataL.id2[["id2merge"]] <- paste(dataL.id2[[idVar]], round(c(t(st)), 8), sep = ":")
+        dataLS.id2 <- merge(dataL.id2, dataS.id2[survVars_notin_long2], by = "id2merge",
+                            sort = FALSE, all = FALSE)
+        dataLS.id2[[TimeVar]] <- dataLS.id2[[timeVar]] 
+    }
     # corresponding dataset for interval censoring data
     if (typeSurvInf == "interval") {
         dataS_int.id <- last_rows(dataS, dataS[[idVar]])
@@ -169,7 +327,7 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
         dataLS_int <- merge(dataL, dataS_int.id[survVars_notin_long], all = TRUE, 
                             sort = FALSE)
         dataLS_int.id <- merge(dataL_int.id, dataS_int.id[survVars_notin_long], by = idVar,
-                           all = TRUE, sort = FALSE)
+                               all = TRUE, sort = FALSE)
         uu <- runif(length(st_int))
         dataS_int.id2[["id2merge"]] <- paste(dataS_int.id2[[idVar]], uu, sep = ":")
         dataL_int.id2[["id2merge"]] <- paste(dataL.id2[[idVar]], uu, sep = ":")
@@ -177,12 +335,43 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
                                 by = "id2merge", sort = FALSE, all = FALSE)
         dataLS_int.id2[[TimeVar]] <- dataLS_int.id2[[timeVar]]
     }
-    # design matrices for the survival submodel, W1 is for the baseline hazard,
-    # W2 for the baseline and external time-varying covariates
-    W1 <- splines::splineDesign(con$knots, Time, ord = con$ordSpline)
-    W1s <- splines::splineDesign(con$knots, c(t(st)), ord = con$ordSpline)
-    W2 <- model.matrix(Terms, data = dataS.id)[, -1, drop = FALSE]
-    W2s <- model.matrix(Terms, data = dataS.id2)[, -1, drop = FALSE]
+    if (typeSurvInf == "counting" && multiState) {
+        W1 <- mapply(FUN = function (x, y) splines::splineDesign(x, y, ord = con$ordSpline, outer.ok = TRUE), 
+                     con$knots, split.TimeR, SIMPLIFY = FALSE)
+        W1 <- mapply(FUN = function (w1, ind) {
+            out <- matrix(0, length(Time), ncol(w1))
+            out[strat == ind, ] <- w1
+            out
+        }, W1, levels(strat), SIMPLIFY = FALSE)
+        knots_strat <- lapply(W1, ncol)
+        knots_strat <- do.call(c, knots_strat)
+        W1 <- do.call(cbind, W1)
+        strat_GQ <- rep(strat, each = con$GQsurv.k)
+        split.TimeR_GQ <- split(c(t(st)), strat_GQ)
+        W1s <- mapply(FUN = function (x, y) splines::splineDesign(x, y, ord = con$ordSpline, outer.ok = TRUE), 
+                      con$knots, split.TimeR_GQ, SIMPLIFY = FALSE)
+        W1s <- mapply(FUN = function (w1s, ind) {
+            out <- matrix(0, length(Time) * con$GQsurv.k, ncol(w1s))
+            out[strat_GQ == ind, ] <- w1s
+            out
+        }, W1s, levels(strat), SIMPLIFY = FALSE)
+        knots_strat_GQ <- lapply(W1s, ncol)
+        knots_strat_GQ <- do.call(c, knots_strat_GQ)
+        W1s <- do.call(cbind, W1s)
+        dataS.id.clone <- dataS
+        Terms <- drop.terms(Terms, attr(Terms, "specials")$strata - 1, 
+                            keep.response = TRUE)
+        W2 <- model.matrix(Terms, data = dataS.id.clone)[, -1, drop = FALSE]
+        W2s <- model.matrix(Terms, data = dataS.id2)[, -1, drop = FALSE]
+    } else {
+        # design matrices for the survival submodel, W1 is for the baseline hazard,
+        # W2 for the baseline and external time-varying covariates
+        W1 <- splines::splineDesign(con$knots, Time, ord = con$ordSpline, outer.ok = TRUE)
+        W1s <- splines::splineDesign(con$knots, c(t(st)), ord = con$ordSpline, outer.ok = TRUE)
+        knots_strat <- ncol(W1)
+        W2 <- model.matrix(Terms, data = dataS.id)[, -1, drop = FALSE]
+        W2s <- model.matrix(Terms, data = dataS.id2)[, -1, drop = FALSE]
+    }
     if (typeSurvInf == "interval") {
         W1_int <- splines::splineDesign(con$knots, TimeL, ord = con$ordSpline, 
                                         outer.ok = TRUE)
@@ -354,17 +543,50 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
         x <- c(x[-length(x)] != x[-1L], TRUE)
         which(x) - 1
     })
-    Wlong <- designMatLong(XX, postMean_betas, ZZ, postMean_b, id, outcome,
-                           indFixed, indRandom, U, trans_Funs)
-    Wlongs <- designMatLong(XXs, postMean_betas, ZZs, postMean_b, ids, outcome,
-                            indFixed, indRandom, Us, trans_Funs)
+    if (typeSurvInf == "counting" && multiState) {
+        idT.list <- list(idT)
+        Wlong <- designMatLong(XX, postMean_betas, ZZ, postMean_b, idT.list, outcome, 
+                               indFixed, indRandom, U, trans_Funs)
+        idTs <- rep(idT, each = K)
+        idTs.list <- list(idTs)
+        Wlongs <- designMatLong(XXs, postMean_betas, ZZs, postMean_b, idTs.list, outcome, 
+                                indFixed, indRandom, Us, trans_Funs)
+        idT_rsum <- c(idT[-length(idT)] != idT[-1L], TRUE)
+        idT_rsum <- which(idT_rsum) - 1
+        rows_wlong <- tapply(which(idT == idT), idT, c)
+        rows_wlongs <- tapply(which(idTs == idTs), idTs, c)
+    } else {
+        Wlong <- designMatLong(XX, postMean_betas, ZZ, postMean_b, id, outcome,
+                               indFixed, indRandom, U, trans_Funs)
+        Wlongs <- designMatLong(XXs, postMean_betas, ZZs, postMean_b, ids, outcome,
+                                indFixed, indRandom, Us, trans_Funs)
+        idT.u <- unique(idT)
+        idT_rsum <- c(idT.u[-length(idT.u)] != idT.u[-1L], TRUE)
+        idT_rsum <- which(idT_rsum) - 1
+        idTs <- rep(idT.u, each = K)
+        rows_wlong <- tapply(which(idT.u == idT.u), idT.u, c)
+        rows_wlongs <- tapply(which(idTs == idTs), idTs, c)
+    }
     if (typeSurvInf == "interval") {
         Wlongs_int <- designMatLong(XXs_int, postMean_betas, ZZs_int, postMean_b, ids, 
                                     outcome, indFixed, indRandom, Us_int, trans_Funs)
     }
     # priors
-    DD <- diag(ncol(W1))
-    Tau_Bs_gammas <- crossprod(diff(DD, differences = con$diff)) + 1e-06 * DD
+    if (typeSurvInf == "counting" && multiState) {
+        DD <- lapply(knots_strat, diag)
+        Tau_Bs_gammas.strt <- lapply(DD, FUN = function(x) {
+            crossprod(diff(x, differences = con$diff)) + 1e-06 * x
+        })
+        Tau_Bs_gammas <- matrix(0, nrow = sum(knots_strat), ncol = sum(knots_strat))
+        for (i in 1:length(knots_strat)) {
+            tmp.first <-  cumsum(knots_strat) - knots_strat + 1
+            tmp.last <- cumsum(knots_strat)
+            Tau_Bs_gammas[tmp.first[i]:tmp.last[i], tmp.first[i]:tmp.last[i]] <- Tau_Bs_gammas.strt[[i]]
+        }
+    } else {
+        DD <- diag(ncol(W1))
+        Tau_Bs_gammas <- crossprod(diff(DD, differences = con$diff)) + 1e-06 * DD
+    }
     find_td_cols <- function (x) grep('tve(', colnames(x), fixed = TRUE)
     td_cols <- lapply(U, find_td_cols)
     Tau_alphas <- lapply(U, function (x) 0.01 * diag(NCOL(x)))
@@ -387,9 +609,11 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
                 rank_Tau_Bs_gammas = qr(Tau_Bs_gammas)$rank,
                 A_phi_Bs_gammas = 1, B_phi_Bs_gammas = 0.01, shrink_Bs_gammas = FALSE,
                 A_tau_gammas = 0.1, B_tau_gammas = 0.1, rank_Tau_gammas = ncol(W2),
-                A_phi_gammas = 1, B_phi_gammas = 0.01, shrink_gammas = FALSE,
-                A_tau_alphas = 0.1, B_tau_alphas = 0.1, rank_Tau_alphas = ncol(Wlong),
-                A_phi_alphas = 1, B_phi_alphas = 0.01, shrink_alphas = FALSE)
+                A_phi_gammas = 0.5, B_phi_gammas = 0.01, shrink_gammas = FALSE,
+                A_tau_alphas = 0.5, B_tau_alphas = 0.1, rank_Tau_alphas = ncol(Wlong),
+                shrink_alphas = FALSE, A_phi_alphas = 0.5, B_phi_alphas = 0.01, 
+                double_gamma_alphas = FALSE, A_nu_alphas = 0.5, B_nu_alphas = 1,
+                A_xi_alphas = 0.5, B_xi_alphas = 1)
     if (!is.null(priors)) {
         lngths <- lapply(prs[(nam.prs <- names(priors))], length)
         if (!is.list(priors) || !isTRUE(all.equal(lngths, lapply(priors, length)))) {
@@ -406,27 +630,53 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
                                   sapply(betas, ncol)))
     } else {
         scale_betas <- mvglmerObject$priors[grep("scale_betas", names(mvglmerObject$priors), 
-                                               fixed = TRUE)]
+                                                 fixed = TRUE)]
         prs$Tau_betas <- diag(rep(1 / unlist(scale_betas, use.names = FALSE)^2, 
                                   sapply(betas, ncol)))
     }
     prs$priorK_D <- mvglmerObject$priors$priorK_D
-    # Data passed to the MCMC
-    Data <- list(y = y, Xbetas = Xbetas, X = X, Z = Z, RE_inds = RE_inds,
-                 RE_inds2 = RE_inds2, idL = idL, idL2 = idL2, sigmas = postMean_sigmas,
-                 invD = postMean_inv_D[[1]], fams = fams, links = links, Time = Time,
-                 event = event, idGK_fast = which(idGK_fast) - 1, W1 = W1, W1s = W1s,
-                 event_colSumsW1 = colSums(event * W1), W2 = W2, W2s = W2s,
-                 event_colSumsW2 = if (ncol(W2)) colSums(event * W2),
-                 Wlong = Wlong, Wlongs = Wlongs,
-                 event_colSumsWlong = colSums(event * Wlong),
-                 U = U, Us = Us, col_inds = attr(Wlong, "col_inds"),
-                 row_inds_U = seq_len(nrow(Wlong)), row_inds_Us = seq_len(nrow(Wlongs)),
-                 XXbetas = XXbetas, XXsbetas = XXsbetas, XX = XX, XXs = XXs, ZZ = ZZ,
-                 ZZs = ZZs, P = P[ids[[1]]], w = rep(wk, nT),
-                 Pw = P[ids[[1]]] * rep(wk, nT), idT = id[outcome], idTs = ids[outcome],
-                 outcome = outcome, indFixed = indFixed, indRandom = indRandom,
-                 trans_Funs = trans_Funs)
+    if (typeSurvInf == "counting" && multiState) {
+        Data <- list(y = y, Xbetas = Xbetas, X = X, Z = Z, RE_inds = RE_inds, 
+                     RE_inds2 = RE_inds2, idL = idL, idL2 = idL2, sigmas = postMean_sigmas, 
+                     invD = postMean_inv_D[[1]], fams = fams, links = links, Time = Time, 
+                     event = event, idGK_fast = which(idGK_fast) - 1, W1 = W1, W1s = W1s, 
+                     event_colSumsW1 = colSums(event * W1), W2 = W2, W2s = W2s, 
+                     event_colSumsW2 = if (ncol(W2)) colSums(event * W2), 
+                     Wlong = Wlong, Wlongs = Wlongs, 
+                     event_colSumsWlong = colSums(event * Wlong), 
+                     U = U, Us = Us, col_inds = attr(Wlong, "col_inds"), 
+                     row_inds_U = seq_len(nrow(Wlong)), row_inds_Us = seq_len(nrow(Wlongs)), 
+                     XXbetas = XXbetas, XXsbetas = XXsbetas, XX = XX, XXs = XXs, ZZ = ZZ, 
+                     ZZs = ZZs, P = P[ids[[1]]], w = rep(wk, nT.long), 
+                     Pw = P[ids[[1]]] * rep(wk, nT.long), idT = id[outcome], idTs = ids[outcome], 
+                     idT2 = idT.list[outcome], idT2s = idTs.list[outcome], idT_rsum = idT_rsum, 
+                     outcome = outcome, indFixed = indFixed, indRandom = indRandom, 
+                     trans_Funs = trans_Funs, nRisks = nRisks, 
+                     kn_strat_last = cumsum(knots_strat) - 1, 
+                     kn_strat_first = cumsum(knots_strat) - knots_strat, 
+                     rows_wlong = rows_wlong, rows_wlongs = rows_wlongs)
+    } else {
+        # Data passed to the MCMC
+        Data <- list(y = y, Xbetas = Xbetas, X = X, Z = Z, RE_inds = RE_inds,
+                     RE_inds2 = RE_inds2, idL = idL, idL2 = idL2, sigmas = postMean_sigmas,
+                     invD = postMean_inv_D[[1]], fams = fams, links = links, Time = Time,
+                     event = event, idGK_fast = which(idGK_fast) - 1, W1 = W1, W1s = W1s,
+                     event_colSumsW1 = colSums(event * W1), W2 = W2, W2s = W2s,
+                     event_colSumsW2 = if (ncol(W2)) colSums(event * W2),
+                     Wlong = Wlong, Wlongs = Wlongs,
+                     event_colSumsWlong = colSums(event * Wlong),
+                     U = U, Us = Us, col_inds = attr(Wlong, "col_inds"),
+                     row_inds_U = seq_len(nrow(Wlong)), row_inds_Us = seq_len(nrow(Wlongs)),
+                     XXbetas = XXbetas, XXsbetas = XXsbetas, XX = XX, XXs = XXs, ZZ = ZZ,
+                     ZZs = ZZs, P = P[ids[[1]]], w = rep(wk, nT),
+                     Pw = P[ids[[1]]] * rep(wk, nT), idT = id[outcome], idTs = ids[outcome],
+                     outcome = outcome, indFixed = indFixed, indRandom = indRandom,
+                     trans_Funs = trans_Funs, nRisks = 1, 
+                     kn_strat_last = cumsum(knots_strat) - 1, 
+                     kn_strat_first = cumsum(knots_strat) - knots_strat,
+                     idT_rsum = idT_rsum, idT2 = id[outcome], idT2s = ids[outcome], 
+                     rows_wlong = rows_wlong, rows_wlongs = rows_wlongs)
+    }
     if (typeSurvInf == "interval") {
         Data <- c(Data, list(Levent1 = event == 1, 
                              Levent01 = event == 1 | event == 0,
@@ -457,6 +707,9 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
     inits2 <- marglogLik2(inits[c("Bs_gammas", "gammas", "alphas", "tau_Bs_gammas")],
                           Data, prs, fixed_tau_Bs_gammas = TRUE)
     inits[names(attr(inits2, "inits"))] <- attr(inits2, "inits")
+    if (multiState) {
+        inits$tau_Bs_gammas <- rep(inits$tau_Bs_gammas, nRisks)
+    }
     Cvs <- attr(inits2, "Covs")
     nRE <- sum(sapply(Z, ncol))
     Cvs$b <- array(0.0, c(nRE, nRE, nT))
@@ -473,11 +726,11 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
             } else {
                 if (is.matrix(obj)) obj[m, ] else obj[m, , ]
             }
-
+            
         })
     }
     runParallel <- function (block, betas, b, sigmas, inv_D, inits, data, priors,
-                             scales, Covs, control, interval_cens) {
+                             scales, Covs, control, interval_cens, multiState) {
         M <- length(block)
         LogLiks <- numeric(M)
         out <- vector("list", M)
@@ -502,11 +755,11 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
                 }
                 data$sigmas <- sampl(sigmas, ii)
                 data$invD <- as.matrix(sampl(inv_D, ii)[[1]])
-                oo <- lap_rwm_C(inits, data, priors, scales, Covs, control, interval_cens)
+                oo <- lap_rwm_C(inits, data, priors, scales, Covs, control, interval_cens, multiState)
                 current_betas <- unlist(betas., use.names = FALSE)
                 n_betas <- length(current_betas)
                 pr_betas <- c(dmvnorm2(rbind(current_betas), rep(0, n_betas),
-                                      priors$Tau_betas, logd = TRUE))
+                                       priors$Tau_betas, logd = TRUE))
                 pr_invD <- dwish(data$invD, diag(nrow(data$invD)),
                                  priors$priorK_D, log = TRUE)
                 LogLiks[i] <- c(oo$logWeights) - pr_betas - pr_invD
@@ -549,7 +802,7 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
                     "tau_alphas" = do.call("rbind", out[nams == "tau_alphas"]),
                     "tau_td_alphas" = do.call("rbind", out[nams == "tau_td_alphas"]),
                     "phi_Bs_gammas" = do.call("rbind", out[nams == "phi_Bs_gammas"]),
-                    "phi_gammas" = if (any_gammas)do.call("rbind", out[nams == "phi_gammas"]),
+                    "phi_gammas" = if (any_gammas) do.call("rbind", out[nams == "phi_gammas"]),
                     "phi_alphas" = do.call("rbind", out[nams == "phi_alphas"]))
         out$LogLiks <- LogLiks
         nams <- names(scales)
@@ -605,7 +858,7 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
         registerDoParallel(con$n_cores)
         out1 <- foreach(i = block1, .packages = "JMbayes", .combine = c) %dopar% {
             runParallel(i, betas, b, sigmas, inv_D, inits, Data, prs, scales, Cvs, con,
-                        typeSurvInf == "interval")
+                        typeSurvInf == "interval", multiState)
         }
         #stopCluster(cluster)
         stopImplicitCluster()
@@ -632,7 +885,7 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
         registerDoParallel(con$n_cores)
         out <- foreach(i = blocks, .packages = "JMbayes", .combine = c) %dopar% {
             runParallel(i, betas, b, sigmas, inv_D, inits, Data, prs, new_scales, Cvs, 
-                        con, typeSurvInf == "interval")
+                        con, typeSurvInf == "interval", multiState)
         }
         #stopCluster(cluster)
         stopImplicitCluster()
@@ -663,7 +916,7 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
         out <- lapply(mcmc, function (x) {
             d <- dim(x)
             if (!is.null(d) && length(d) > 1) {
-                dd <- if (length(d) == 2) 2L else if (d[1L] > d[3L]) c(2L, 3L)
+                dd <- if (length(d) == 2) 2L else if (d[2L] == d[3L]) c(2L, 3L)
                 else c(1L, 2L)
                 apply(x, dd, fun, ...)
             } else if (!is.null(x)) {
@@ -699,7 +952,7 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
                     wStDev = summary_fun(wsd, weights = weights),
                     StErr = summary_fun(stdErr),
                     CIs = summary_fun(quantile, probs = c(0.025, 0.975)),
-                    wCIS = summary_fun(Hmisc::wtd.quantile, weights = weights, 
+                    wCIs = summary_fun(Hmisc::wtd.quantile, weights = weights, 
                                        probs = c(0.025, 0.975), type = "i/(n+1)", 
                                        na.rm = TRUE),
                     Pvalues = summary_fun(computeP)
@@ -712,7 +965,8 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
                     Interactions = Interactions,
                     RE_inds = RE_inds,
                     RE_inds2 = RE_inds2,
-                    transFuns = trans_Funs,
+                    transFuns = trans_Funs, 
+                    multiState = multiState, 
                     mvglmer_components = c(components, list(data = dataL)),
                     coxph_components = list(data = dataS, Terms = Terms, Time = Time, 
                                             event = event, TermsU = TermsU,

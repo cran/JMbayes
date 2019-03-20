@@ -6,13 +6,26 @@ data_part <- function (families, ncolsZs, extraXs, n_RE, colmns_HC, colmns_nHC) 
                                     "binomial" = paste0("int<lower=0, upper=1> y", outcome, "[N", outcome, "]"),
                                     "poisson" = paste0("int<lower=0> y", outcome, "[N", outcome, "]")
         )
+        f <- function (colmns_HC_i, outcome) {
+            if (length(colmns_HC_i) > 1) {
+                out <- vector("character", length(colmns_HC_i))
+                for (k in seq_along(colmns_HC_i)) {
+                    ll <- length(colmns_HC_i[[k]])
+                    out[k] <- paste0(myt(), "int colmns_HC", outcome, k,
+                                     if (ll > 1) paste0("[", ll, "]"), ";\n")
+                }
+                paste(out, collapse = "")
+            } else {
+                ll <- length(colmns_HC_i)
+                paste0(myt(), "int colmns_HC", outcome,
+                       if (ll > 1) paste0("[", ll, "]"), ";\n")
+            }
+        }
         paste0(myt(), "int N", outcome, ";\n",
                myt(), "int ncx", outcome, ";\n",
                myt(), "int id", outcome, "[N", outcome, "];\n",
                myt(), "int RE_ind", outcome, if (ncolsZ > 1) paste0("[", ncolsZ, "]"), ";\n",
-               if (ll <- length(colmns_HC)) 
-                   paste0(myt(), "int colmns_HC", outcome, 
-                          if (ll > 1) paste0("[", ll, "]"), ";\n"),
+               f(colmns_HC, outcome),
                if (ll <- length(colmns_nHC)) 
                    paste0(myt(), "int colmns_nHC", outcome, 
                           if (ll > 1) paste0("[", ll, "]"), ";\n"),
@@ -63,15 +76,22 @@ transformed_parameters <- function (families, colmns_HC, colmns_nHC, RE_inds) {
         paste0(myt(), "vector[N", outcome, "] eta", outcome, ";\n")
     }
     colmns_HC2 <- unlist(colmns_HC, recursive = FALSE)
+    nams <- names(colmns_HC2)
     ncols <- sapply(colmns_HC2, length)
-    colmns_HC2[] <- lapply(colmns_HC2, paste0, collapse = ":")
-    HC_part <- function (outcome, columns, ncol, i) {
-        if (ncol > 1) {
-            paste0(myt(2), "mu_u[i, ", i,"] = dot_product(Xhc", outcome, 
-                   "[i, colmns_HC", outcome, "], betas", outcome, "[colmns_HC", outcome, "]);\n")
-        } else if (ncol == 1) {
-            paste0(myt(2), "mu_u[i, ", i,"] = Xhc", outcome, 
-                   "[i, ", columns, "] * betas", outcome, "[", columns, "];\n")
+    HC_part <- function (outcome, columns, nam, ncol, i) {
+        #if (ncol > 1) {
+        #    paste0(myt(2), "mu_u[i, ", i,"] = dot_product(Xhc", outcome, 
+        #           "[i, ", nam, "], betas", outcome, "[", nam, "]);\n")
+        #} else if (ncol == 1) {
+        #    paste0(myt(2), "mu_u[i, ", i,"] = Xhc", outcome, 
+        #           "[i, ", columns, "] * betas", outcome, "[", columns, "];\n")
+        #} else {
+        #    paste0(myt(2), "mu_u[i, ", i,"] = 0.0;\n")
+        #}
+        if (ncol) {
+            paste0(myt(2), "mu_u[i, ", i,"] = ", 
+                   paste0("Xhc", outcome, "[i, ", columns, "] * betas", 
+                          outcome, "[", columns, "]", collapse = " + "), ";\n")
         } else {
             paste0(myt(2), "mu_u[i, ", i,"] = 0.0;\n")
         }
@@ -80,19 +100,24 @@ transformed_parameters <- function (families, colmns_HC, colmns_nHC, RE_inds) {
         j_i <- paste0("j", outcome)
         paste0(myt(), "for (", j_i, " in 1:N", outcome, ") {\n",
                myt(2), "eta", outcome, "[", j_i, "] = ", 
-               if (length(colmns_HC) > 1)
-                   paste0("dot_product(Z", outcome, "[", j_i,
-                          ", ], u[id", outcome, "[", j_i, "], RE_ind", outcome, "])")
-               else
-                   paste0("Z", outcome, "[", j_i, ", 1] * u[id", outcome, "[", j_i, "], ",
-                          RE_ind, "]"),
+               #if (length(colmns_HC) > 1)
+                #   paste0("dot_product(Z", outcome, "[", j_i,
+                #          ", ], u[id", outcome, "[", j_i, "], RE_ind", outcome, "])")
+               #else
+            #       paste0("Z", outcome, "[", j_i, ", 1] * u[id", outcome, "[", j_i, "], ",
+             #             RE_ind, "]"),
+               paste0("Z", outcome, "[", j_i, ", 1] * u[id", outcome, "[", j_i, "], ",
+                      RE_ind, "]", collapse = " + "),
                if (length(clm <- colmns_nHC)) {
-                   if (length(clm) > 1)
-                       paste0("\n", myt(4), " + dot_product(X", outcome, "[", j_i, ", colmns_nHC",
-                              outcome,"], betas", outcome, "[colmns_nHC", outcome, "]);\n")
-                   else
-                       paste0("\n", myt(4), " + X", outcome, "[", j_i, ", ", clm, "] * betas", outcome, 
-                              "[", clm, "];\n")
+                   #if (length(clm) > 1)
+                #       paste0("\n", myt(4), " + dot_product(X", outcome, "[", j_i, ", colmns_nHC",
+                  #           outcome,"], betas", outcome, "[colmns_nHC", outcome, "]);\n")
+                 #  else
+                   
+                   paste0("\n", myt(4), " + ", 
+                          paste0("X", outcome, "[", j_i, ", ", clm, "] * betas", outcome, 
+                              "[", clm, "]", collapse = " + "), ";\n")
+                   
                } else ";\n",
                myt(), "}\n")
     }
@@ -100,7 +125,7 @@ transformed_parameters <- function (families, colmns_HC, colmns_nHC, RE_inds) {
            myt(), "matrix[n, n_RE] mu_u;\n",
            myt(), "for (i in 1:n) {\n",
            paste0(mapply(HC_part, rep(outcomes, sapply(colmns_HC, length)), 
-                         colmns_HC2, ncols, seq_along(colmns_HC2)), collapse = ""),
+                         colmns_HC2, nams, ncols, seq_along(colmns_HC2)), collapse = ""),
            myt(), "}\n",
            paste0(mapply(linpred_part, outcomes, colmns_HC, colmns_nHC, RE_inds), collapse = ""),
            "}\n")
@@ -114,12 +139,12 @@ model <- function (families, n_RE) {
                       if (n_RE > 1)
                           paste0(myt(),  "matrix[n_RE, n_RE] L_D;\n",
                                  myt(),  "L_D = diag_pre_multiply(L_var_D, L_corr_D);\n",
-                                 myt(),  "L_var_D ~ cauchy(0, scale_diag_D);\n",
+                                 myt(),  "L_var_D ~ student_t(3, 0, scale_diag_D);\n",
                                  myt(),  "L_corr_D ~ lkj_corr_cholesky(lkj_shape);\n",
                                  myt(),  "for (i in 1:n) {\n",
                                  myt(2), "u[i, ] ~ multi_normal_cholesky(mu_u[i, ], L_D);\n")
                       else
-                          paste0(myt(), "D ~ cauchy(0, scale_diag_D);\n",
+                          paste0(myt(), "D ~ student_t(3, 0, scale_diag_D);\n",
                                  myt(), "for (i in 1:n) {\n",
                                  myt(2), "u[i, ] ~ normal(mu_u[i, ], D);\n"),
                       myt(), "}\n")
@@ -129,7 +154,7 @@ model <- function (families, n_RE) {
                outcome, ");\n",
                myt(), "}\n",
                if (family$family == "gaussian") paste0(myt(), "sigma", outcome, 
-                                                       " ~ cauchy(0, scale_sigmas);\n"))
+                                                       " ~ student_t(3, 0, scale_sigmas);\n"))
     }
     dist_part <- function (outcome, family) {
         if (family$family == "gaussian") {

@@ -37,15 +37,14 @@ prederrJM.mvJMbayes <- function (object, newdata, Tstart, Thoriz, lossFun = c("s
     SurvT <- model.response(model.frame(TermsT, newdata2))
     if (is_counting) {
         f <- factor(id2, levels = unique(id2))
-        Time <- tapply(SurvT[, 2], f, tail, 1)
-        event <- tapply(SurvT[, 3], f, tail, 1)
+        Time <- ave(SurvT[, 2], f, FUN = function (x) tail(x, 1))
+        event <- ave(SurvT[, 3], f, FUN = function (x) tail(x, 1))
     } else if (is_interval) {
         Time1 <- SurvT[, "time1"]
         Time2 <- SurvT[, "time2"]
         Time <- Time1
         Time[Time2 != 1] <- Time2[Time2 != 1]
-        Time <- Time[!duplicated(id2)]
-        event <- SurvT[!duplicated(id2), "status"]
+        event <- SurvT[, "status"]
     } else {
         Time <- SurvT[, 1]
         event <- SurvT[, 2]

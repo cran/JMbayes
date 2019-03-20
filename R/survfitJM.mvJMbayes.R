@@ -1,6 +1,6 @@
 survfitJM.mvJMbayes <- function (object, newdata, survTimes = NULL, idVar = "id", 
-                                   last.time = NULL, M = 200L, scale = 1.6, log = FALSE, 
-                                   CI.levels = c(0.025, 0.975), seed = 1L, ...) {
+                                 last.time = NULL, M = 200L, scale = 1.6, log = FALSE, 
+                                 CI.levels = c(0.025, 0.975), seed = 1L, ...) {
     if (!inherits(object, "mvJMbayes"))
         stop("Use only with 'mvJMbayes' objects.\n")
     if (!is.data.frame(newdata) || nrow(newdata) == 0L)
@@ -116,7 +116,11 @@ survfitJM.mvJMbayes <- function (object, newdata, survTimes = NULL, idVar = "id"
     }
     postMeans <- object$statistics$postMeans
     betas <- postMeans[grep("betas", names(postMeans), fixed = TRUE)] 
-    sigma <- postMeans[grep("sigma", names(postMeans), fixed = TRUE)]
+    sigmas <- postMeans[grep("sigma", names(postMeans), fixed = TRUE)]
+    sigma <- vector("list", n_outcomes)
+    if (any(which_gaussian <- which(fams == "gaussian"))) {
+        sigma[which_gaussian] <- sigmas
+    }
     D <- postMeans[grep("^D", names(postMeans), fixed = FALSE)]
     gammas <- postMeans[grep("^gammas", names(postMeans), fixed = FALSE)]
     alphas <- postMeans[grep("^alphas", names(postMeans), fixed = FALSE)]
@@ -338,7 +342,11 @@ survfitJM.mvJMbayes <- function (object, newdata, survTimes = NULL, idVar = "id"
             invD.new <- mcmc$inv_D[m, ,] 
             Bs_gammas.new <- mcmc$Bs_gammas[m, ]
             gammas.new <- mcmc$gammas[m, ]
-            sigma.new <- lapply(mcmc[grep("sigma", names(mcmc))], function (x) x[m])
+            sigma <- lapply(mcmc[grep("sigma", names(mcmc))], function (x) x[m])
+            sigma.new <- vector("list", n_outcomes)
+            if (any(which_gaussian <- which(fams == "gaussian"))) {
+                sigma.new[which_gaussian] <- sigma
+            }
             p.b <- proposed.b[[i]][m, ]
             dmvt.old <- dmvt(b.old[i, ], modes.b[i, ], invSigma = invVars.b[[i]], df = 4, log = TRUE)
             dmvt.prop <- dmvt.proposed[[i]][m]
@@ -452,15 +460,15 @@ survfitJM.mvJMbayes <- function (object, newdata, survTimes = NULL, idVar = "id"
 ##########################################################################################
 
 print.survfit.mvJMbayes <- function (x, ...) {
-        cat("\nPrediction of Conditional Probabilities of Event\n\tbased on", 
-            x$M, "Monte Carlo samples\n\n")
-        f <- function (d, t) {
-            dd <- d[1L, , drop = FALSE]
-            dd[1L, ] <- c(as.vector(t), rep(1, ncol(dd) - 1))
-            round(rbind(dd, d), 4L)
-        }
-        print(mapply(f, x$summaries, x$last.time, SIMPLIFY = FALSE))
-        invisible(x)
+    cat("\nPrediction of Conditional Probabilities of Event\n\tbased on", 
+        x$M, "Monte Carlo samples\n\n")
+    f <- function (d, t) {
+        dd <- d[1L, , drop = FALSE]
+        dd[1L, ] <- c(as.vector(t), rep(1, ncol(dd) - 1))
+        round(rbind(dd, d), 4L)
+    }
+    print(mapply(f, x$summaries, x$last.time, SIMPLIFY = FALSE))
+    invisible(x)
 }
 
 ##########################################################################################
