@@ -1,4 +1,4 @@
-e8b9491cff4ce7841b7e8606e1ad2e52 *DESCRIPTION
+47c788422e55bb1ef4d1deb35336a7f3 *DESCRIPTION
 da2f765130f33d68edbf0bc48b0fa25b *NAMESPACE
 abdb01958a9508084c317e20c54ad9ec *R/JAGSmodel.R
 8384a35349c528f8429dfcec4f450113 *R/MCMCfit.R
@@ -10,9 +10,9 @@ d62cfddf21e663082988779c71865d32 *R/RcppExports.R
 84e19a9756a29e0a8cf6fdf9a399cfd5 *R/adjustKRW.R
 63643be488a1cd6a20d812ce548d1bf0 *R/adjustScaleRW.R
 99feeb9770860d2b531700175d197114 *R/anova.JMbayes.R
-bc1f5fe5cc75ed660c2890a4a118d058 *R/aucJM.JMbayes.R
+3a4507184e1dc3907ea8e84b1ad8ab92 *R/aucJM.JMbayes.R
 e119c8ce46cd7beb710c4d6248451217 *R/aucJM.R
-ba0f32518bbf5591188c52b9fae16001 *R/aucJM.coxph.R
+72ec1f1097b7df8ed59fdd63e0ac3903 *R/aucJM.coxph.R
 592b7098ec684a1ffc355f809ff5de4c *R/aucJM.mvJMbayes.R
 874f62973f980ddbf415a1ea5d507143 *R/bdiag.R
 ea180136f7b2912861cab81b5430e908 *R/blockUpdate.R
@@ -66,7 +66,7 @@ f38b5dfb5e77b827a029a55f2d4da67c *R/hMats.R
 a2a3e6dd608958613a53b62731d343b7 *R/initSurv_mvJointModelBayes.R
 7c522fd3967e06bfc46cd22706c42958 *R/initSurvival.R
 76e02e453fdb155dc480c35d76dd3c5f *R/ins.R
-c6e9502ea83bebea299fb50cbffb6fb3 *R/jointModelBayes.R
+def312577de2cf9a6d05957ef130c0bd *R/jointModelBayes.R
 8c43544fbf59c99e943a413aef73dcfc *R/log.posterior.b.R
 5411ddf0ce93132c35a07437a8b603db *R/logLik.JMbayes.R
 99f503d022028f5298b2326d1aad6f83 *R/logh.b.R
@@ -78,7 +78,7 @@ d0497d5497752d1bc2299dacadc530f1 *R/margLogLik2.R
 a959aae1e71e78ab793338cc01b3b0ec *R/marglogLik.R
 f6a3917c33fd97e44f50a0848b79474d *R/methods_mvJointModelBayes.R
 e57959dcad15a71359a206ef15a5e0a5 *R/modes.R
-86898f63974b6ca17cf308cc126d0ad1 *R/mvJointModelBayes.R
+f63e463dc7e4fc597d49e77035ab34a5 *R/mvJointModelBayes.R
 08263c0ad5bc1848731e041e00598227 *R/mv_glmer.R
 83f04fb3bf7167b74a4e9ad659276449 *R/nearPD.R
 e125acce83667f37cff5ab6f3a496251 *R/pgt.R
@@ -87,7 +87,7 @@ d83e0fc85fd19d0a2c534b3b2581526c *R/plot.JMbayes.R
 db57df4ec605599548e477864fab9869 *R/plot.survfit.JMbayes.R
 048efea9e9af2acd548eed687bfc95c9 *R/prederrJM.JMbayes.R
 7dfb47273da4f597e351dded97f83db4 *R/prederrJM.R
-b54aed0121b0dea9c953c1c48fca531c *R/prederrJM.coxph.R
+8da39cbbb33c12c45289cb5bfff63255 *R/prederrJM.coxph.R
 c2dc923abd44bcbb4b81a6a886c2377c *R/prederrJM.mvJMbayes.R
 48b2f2bc351b02360ffe06a28e4237a7 *R/predict.JMbayes.R
 88a50fbabe9b5fd2bad0bfd6219e85d3 *R/predict_eventTime.R
@@ -115,7 +115,7 @@ b07208a5ff6ff4dbe88770e469e24989 *R/slice.shape.R
 d9d7247468d9ef1cbd5c8c02b2c4f663 *R/smilyface.R
 b62397b00cc092c45b5de84f6d5c89c3 *R/stdErr.R
 c749b4dbb19aafc9892ce1b158117931 *R/summary.JMbayes.R
-ab88ae253749ed0b73bc98ec1b645039 *R/supportFuns_mvJointModelBayes.R
+b4d120e5b7a23101b46c73a59b36ef53 *R/supportFuns_mvJointModelBayes.R
 23699ea8d653215173083ad06368726c *R/survPriors.R
 96791ab50d787ebbd4e393f0fcaf7473 *R/survfitJM.JMbayes.R
 8175c76baa2bda8517e8902e14fbad3d *R/survfitJM.R
@@ -144,7 +144,7 @@ c902c93178954bbb802d176ebda58176 *inst/shiny_app_JM/white_space.Rhtml
 4970226e7eed8c6c0f7ef9df07395051 *inst/shiny_app_lme/ui.R
 5b8834a0cc1c97be51cad878543f1f6c *man/DerivIntSplines.Rd
 126596d464d58d8056104858d8eecffd *man/IndvPred.Rd
-068ed06a8644f8b3d5b2784e8e7909cf *man/JMbayes.Rd
+a6a9bea2bbe28b02520bbdecae08b395 *man/JMbayes.Rd
 1ac65f35fed5fdabc77f17ec9749a25a *man/JMbayesObject.Rd
 6b3e3608f33349e64ff8a5c17584e537 *man/aids.Rd
 ce85b46d97fe4cbd74519a401ad8c6b7 *man/anova.Rd
