@@ -110,7 +110,7 @@ initSurvival <- function (Time, event, id, W2, W2s, P, wk, id.GK, times, b = NUL
     }
     test <- try(opt2 <- suppressWarnings(optim(out.vec, fn3, method = "BFGS", hessian = TRUE, 
                                    control = list(parscale = rep(0.1, length(out.vec))))), silent = TRUE)
-    if (!inherits(test, "try-error") && !opt2$convergence && eigen(opt2$hessian, TRUE)$values > 0) {
+    if (!inherits(test, "try-error") && !opt2$convergence && all(eigen(opt2$hessian, TRUE)$values > 0)) {
         res <- relist(opt2$par, out[ind])
         out[names(res)] <- res
         V <- solve(nearPD(opt2$hessian))

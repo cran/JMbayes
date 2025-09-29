@@ -6,6 +6,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // lap_rwm_C
 List lap_rwm_C(List initials, List Data, List priors, List scales, List Covs, List control, bool interval_cens, bool multiState);
 RcppExport SEXP _JMbayes_lap_rwm_C(SEXP initialsSEXP, SEXP DataSEXP, SEXP priorsSEXP, SEXP scalesSEXP, SEXP CovsSEXP, SEXP controlSEXP, SEXP interval_censSEXP, SEXP multiStateSEXP) {

@@ -86,7 +86,7 @@ dynInfo <- function (object, newdata, Dt, K = 5, M = 500, idVar = "id",
     list.thetas <- list.thetas[!sapply(list.thetas, is.null)]
     thetas <- unlist(as.relistable(list.thetas))
     ########
-    environment(log.posterior.b) <- environment(S.b) <- environment(logh.b) <- environment()
+    environment(log_posterior_b) <- environment(S.b) <- environment(logh.b) <- environment()
     environment(hMats) <- environment(ModelMats) <- environment()
     obs.times <- split(newdata[[timeVar]][na.ind], id)
     survMats <- lapply(c(max_time, times), ModelMats, ii = 1)
@@ -103,7 +103,7 @@ dynInfo <- function (object, newdata, Dt, K = 5, M = 500, idVar = "id",
     Dalphas.new <- Dalphas
     shapes.new <- shapes
     Bs.gammas.new <- Bs.gammas
-    ff <- function (b, y, tt, mm, i) -log.posterior.b(b, y, Mats = tt, ii = i)
+    ff <- function (b, y, tt, mm, i) -log_posterior_b(b, y, Mats = tt, ii = i)
     start <- rep(0, ncz)
     opt <- try(optim(start, ff, y = y, tt = survMats, i = 1, 
                      method = "BFGS", hessian = TRUE), silent = TRUE)
@@ -168,8 +168,8 @@ dynInfo <- function (object, newdata, Dt, K = 5, M = 500, idVar = "id",
             p.b <- proposed.b[m, ]
             dmvt.old <- dmvt(b.old, modes.b, invSigma = invVars.b, df = 4, log = TRUE)
             dmvt.prop <- dmvt.proposed[m]
-            a <- min(exp(log.posterior.b(p.b, y, list(survMats[[1]]), ii = 1) + dmvt.old - 
-                             log.posterior.b(b.old, y, list(survMats[[1]]), ii = 1) - dmvt.prop), 1)
+            a <- min(exp(log_posterior_b(p.b, y, list(survMats[[1]]), ii = 1) + dmvt.old - 
+                             log_posterior_b(b.old, y, list(survMats[[1]]), ii = 1) - dmvt.prop), 1)
             ind <- runif(1) <= a
             if (!is.na(ind) && ind) {
                 b.new <- p.b
@@ -202,8 +202,8 @@ dynInfo <- function (object, newdata, Dt, K = 5, M = 500, idVar = "id",
             p.b1 <- proposed.b1[m, ]
             dmvt.old1 <- dmvt(b.old1, modes.b, invSigma = invVars.b, df = 4, log = TRUE)
             dmvt.prop1 <- dmvt.proposed1[m]
-            a1 <- min(exp(log.posterior.b(p.b1, y, list(survMats[[1]]), ii = 1) + dmvt.old1 - 
-                              log.posterior.b(b.old1, y, list(survMats[[1]]), ii = 1) - dmvt.prop1), 1)
+            a1 <- min(exp(log_posterior_b(p.b1, y, list(survMats[[1]]), ii = 1) + dmvt.old1 - 
+                              log_posterior_b(b.old1, y, list(survMats[[1]]), ii = 1) - dmvt.prop1), 1)
             ind1 <- runif(1) <= a1
             if (!is.na(ind1) && ind1) {
                 b.new1 <- p.b1
@@ -238,8 +238,8 @@ dynInfo <- function (object, newdata, Dt, K = 5, M = 500, idVar = "id",
             p.b2 <- proposed.b2[m, ]
             dmvt.old2 <- dmvt(b.old2, modes.b, invSigma = invVars.b, df = 4, log = TRUE)
             dmvt.prop2 <- dmvt.proposed2[m]
-            a2 <- min(exp(log.posterior.b(p.b2, y, list(survMats[[1 + ti]]), ii = 1) + dmvt.old2 - 
-                              log.posterior.b(b.old2, y, list(survMats[[1 + ti]]), ii = 1) - dmvt.prop2), 1)
+            a2 <- min(exp(log_posterior_b(p.b2, y, list(survMats[[1 + ti]]), ii = 1) + dmvt.old2 - 
+                              log_posterior_b(b.old2, y, list(survMats[[1 + ti]]), ii = 1) - dmvt.prop2), 1)
             ind2 <- runif(1) <= a2
             if (!is.na(ind2) && ind2) {
                 b.new2 <- p.b2

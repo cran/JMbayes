@@ -1,4 +1,4 @@
-format.pval2 <-
+format_pval2 <-
 function (pv, digits = max(1L, getOption("digits") - 2L), eps = .Machine$double.eps, 
           na.form = "NA", ...) {
     if ((has.na <- any(ina <- is.na(pv)))) 

@@ -10,8 +10,9 @@
 
 \usage{
 \method{xtable}{JMbayes}(x, caption = NULL, label = NULL, align = NULL,
-    digits = NULL, display = NULL, which = c("all", "Longitudinal", "Event"),
-    varNames.Long = NULL, varNames.Event = NULL, \dots)
+    digits = NULL, display = NULL, auto = FALSE, 
+    which = c("all", "Longitudinal", "Event"), varNames.Long = NULL, 
+    varNames.Event = NULL, \dots)
 }
 
 \arguments{
@@ -21,6 +22,7 @@
   \item{align}{the \code{align} argument of \code{xtable()}.}
   \item{digits}{the \code{digits} argument of \code{xtable()}.}
   \item{display}{the \code{display} argument of \code{xtable()}.}
+  \item{auto}{the \code{auto} argument of \code{xtable()}.}
   \item{which}{a character string indicating which results to include in the
       LaTeX table. Options are all results, the results of longitudinal
       submodel or the results of the survival submodel.}

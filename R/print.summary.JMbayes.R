@@ -87,11 +87,11 @@ print.summary.JMbayes <- function (x, digits = max(4, getOption("digits") - 4),
     cat("\nCoefficients:")
     cat("\nLongitudinal Process\n")
     out <- as.data.frame(round(x$"CoefTable-Long", digits))
-    out$P <- format.pval2(out$P, digits = digits, eps = 1e-03)
+    out$P <- format_pval2(out$P, digits = digits, eps = 1e-03)
     print(out)
     cat("\nEvent Process\n")
     out <- as.data.frame(round(x$"CoefTable-Event", digits))
-    out$P <- format.pval2(out$P, digits = digits, eps = 1e-03)
+    out$P <- format_pval2(out$P, digits = digits, eps = 1e-03)
     print(out)
     cat("\nMCMC summary:\n")
     tt <- x$time["elapsed"]/60

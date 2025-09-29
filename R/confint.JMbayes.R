@@ -16,7 +16,7 @@ function (object, parm = c("all", "Longitudinal", "Event"), ...) {
     pnames <- names(cf)
     a <- (1 - 0.95)/2
     a <- c(a, 1 - a)
-    pct <- format.perc(a, 3)
+    pct <- format_perc(a, 3)
     ci <- array(NA, dim = c(length(cf), 3L), 
                 dimnames = list(names(cf), c(pct[1], "est.", pct[2])))
     civals <- switch(parm,

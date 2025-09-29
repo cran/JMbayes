@@ -1,7 +1,7 @@
 xtable.JMbayes <-
 function (x, caption = NULL, label = NULL, align = NULL, digits = NULL, 
-    display = NULL, which = c("all", "Longitudinal", "Event"), varNames.Long = NULL, 
-    varNames.Event = NULL, ...) {
+    display = NULL, auto = FALSE, which = c("all", "Longitudinal", "Event"), 
+    varNames.Long = NULL, varNames.Event = NULL, ...) {
     which <- match.arg(which)
     smobj <- summary(x)
     long <- smobj$'CoefTable-Long'

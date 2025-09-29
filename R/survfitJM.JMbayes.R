@@ -117,7 +117,7 @@ survfitJM.JMbayes <- function (object, newdata, type = c("SurvProb", "Density"),
                         Dalphas = Dalphas, shapes = shapes, Bs.gammas = Bs.gammas, D = D)
     list.thetas <- list.thetas[!sapply(list.thetas, is.null)]
     thetas <- unlist(as.relistable(list.thetas))
-    environment(log.posterior.b) <- environment(S.b) <- environment(logh.b) <- environment()
+    environment(log_posterior_b) <- environment(S.b) <- environment(logh.b) <- environment()
     environment(hMats) <- environment(ModelMats) <- environment()
     # construct model matrices to calculate the survival functions
     obs.times.surv <- split(data.id[[timeVar]], idT)
@@ -140,7 +140,7 @@ survfitJM.JMbayes <- function (object, newdata, type = c("SurvProb", "Density"),
         Dalphas.new <- Dalphas
         shapes.new <- shapes
         Bs.gammas.new <- Bs.gammas
-        ff <- function (b, y, tt, mm, i) -log.posterior.b(b, y, Mats = tt, ii = i)
+        ff <- function (b, y, tt, mm, i) -log_posterior_b(b, y, Mats = tt, ii = i)
         start <- if (is.null(init.b)) rep(0, ncz) else init.b[i, ]
         opt <- try(optim(start, ff, y = y, tt = survMats.last, i = i, 
             method = "BFGS", hessian = TRUE), silent = TRUE)
@@ -212,8 +212,8 @@ survfitJM.JMbayes <- function (object, newdata, type = c("SurvProb", "Density"),
                 dmvt.old <- dmvt(b.old[i, ], modes.b[i, ], invSigma = invVars.b[[i]], 
                                  df = 4, log = TRUE)
                 dmvt.prop <- dmvt.proposed[[i]][m]
-                a <- min(exp(log.posterior.b(p.b, y, survMats.last, ii = i) + dmvt.old - 
-                        log.posterior.b(b.old[i, ], y, survMats.last, ii = i) - dmvt.prop), 1)
+                a <- min(exp(log_posterior_b(p.b, y, survMats.last, ii = i) + dmvt.old - 
+                        log_posterior_b(b.old[i, ], y, survMats.last, ii = i) - dmvt.prop), 1)
                 ind <- runif(1) <= a
                 success.rate[m, i] <- ind
                 if (!is.na(ind) && ind)

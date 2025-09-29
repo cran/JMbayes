@@ -72,7 +72,7 @@ marglogLik <- function (object, newdata, idVar = "id", method = "BFGS", control 
         list.thetas$sigma <- log(list.thetas$sigma)
     if (!is.null(list.thetas$tauBs))
         list.thetas$tauBs <- log(list.thetas$tauBs)
-    list.thetas$D <- chol.transf(list.thetas$D)
+    list.thetas$D <- chol_transf(list.thetas$D)
     thetas.b <- unlist(as.relistable(list.thetas))
     # construct model matrices to calculate the log.posterior
     environment(ModelMats) <- environment()
@@ -95,7 +95,7 @@ marglogLik <- function (object, newdata, idVar = "id", method = "BFGS", control 
         if (transform) {
             if (!is.null(sigma)) sigma <- exp(tht$sigma)
             if (!is.null(tauBs)) tauBs <- exp(tauBs)
-            D <- chol.transf(tht$D)
+            D <- chol_transf(tht$D)
         } else {
             sigma <- tht$sigma
             D <- matrix(0, ncz, ncz)
@@ -192,7 +192,7 @@ marglogLik <- function (object, newdata, idVar = "id", method = "BFGS", control 
                 method = method, control = con, hessian = TRUE)
             opt.thetas <- relist(opt$par, list.thetas)
             opt.thetas$sigma <- exp(opt.thetas$sigma)
-            opt.thetas$D <- chol.transf(opt.thetas$D)
+            opt.thetas$D <- chol_transf(opt.thetas$D)
             opt.thetas$D <- opt.thetas$D[lower.tri(opt.thetas$D, TRUE)]
             opt.thetas <- unlist(as.relistable(opt.thetas))
             H <- opt$hessian

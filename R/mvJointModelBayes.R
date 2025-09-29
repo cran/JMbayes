@@ -25,14 +25,20 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
         stop("'survObject' must be a 'coxph' or 'survreg' object fitted with argument 'model'",
              " set to TRUE.\n")
     }
-    dataS <- survObject$model
+    if (multiState) { 
+        survObject$model <- survObject$model[order(survObject$model$`(cluster)`), ]
+        survObject$model$`(cluster)` <- match(survObject$model$`(cluster)`, unique(survObject$model$`(cluster)`))
+        dataS <- survObject$model
+    } else {
+        dataS <- survObject$model
+    }
     Terms <- attr(dataS, "terms")
     environment(Terms) <- NULL
     SurvInf <- model.response(dataS)
     typeSurvInf <- attr(SurvInf, "type")
     TimeVar <- all.vars(Terms)[1L]
     if (typeSurvInf == "right") {
-        if (class(survObject)[1L] == 'survreg') {
+        if (inherits(survObject, "survreg")) {
             stop("Please refit the survival submodel using coxph().\n")
         }
         Time <- SurvInf[, "time"]
@@ -43,7 +49,7 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
         TimeLl <- rep(0.0, length(Time))
     }
     if (typeSurvInf == "counting" && !multiState) {
-        if (class(survObject) == 'survreg') {
+        if (inherits(survObject, "survreg")) {
             stop("Please refit the survival submodel using coxph().\n")
         }
         if (is.null(survObject$model$`(cluster)`)) {
@@ -68,7 +74,7 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
         #                    keep.response = TRUE)
     }
     if (typeSurvInf == "counting" && multiState) {
-        if (class(survObject) == 'survreg') {
+        if (inherits(survObject, "survreg")) {
             stop("Please refit the survival submodel using coxph(). \n")
         }
         if (is.null(survObject$model$`(cluster)`)) {
@@ -212,7 +218,14 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
         con$knots <- rr
     }
     # build desing matrices for longitudinal process
-    dataL <- mvglmerObject$data
+    if (multiState) {
+        ord_long_id <- gsub("^[l].*\\(.*\\s\\|\\s([^\\)]*).*", "\\1", mvglmerObject$call[2])
+        mvglmerObject$data <- mvglmerObject$data[order(mvglmerObject$data[[ord_long_id]], mvglmerObject$data[[timeVar]]), ]
+        mvglmerObject$data[[ord_long_id]] <- match(mvglmerObject$data[[ord_long_id]], unique(mvglmerObject$data[[ord_long_id]]))
+        dataL <- mvglmerObject$data
+    } else {
+        dataL <- mvglmerObject$data
+    }
     components <- mvglmerObject$components
     families <- mvglmerObject$families
     n_outcomes <- length(families)
@@ -951,7 +964,7 @@ mvJointModelBayes <- function (mvglmerObject, survObject, timeVar,
                     StDev = summary_fun(sd, na.rm = TRUE),
                     wStDev = summary_fun(wsd, weights = weights),
                     StErr = summary_fun(stdErr),
-                    CIs = summary_fun(quantile, probs = c(0.025, 0.975)),
+                    CIs = summary_fun(quantile, probs = c(0.025, 0.975), na.rm = TRUE),
                     wCIs = summary_fun(Hmisc::wtd.quantile, weights = weights, 
                                        probs = c(0.025, 0.975), type = "i/(n+1)", 
                                        na.rm = TRUE),

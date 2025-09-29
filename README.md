@@ -1,7 +1,5 @@
 JMbayes: Joint Models for Longitudinal and Survival Data under the Bayesian Approach
 ================
-[![Travis-CI Build Status](https://travis-ci.org/drizopoulos/JMbayes.svg?branch=master)](https://travis-ci.org/drizopoulos/JMbayes) [![CRAN status](http://www.r-pkg.org/badges/version/JMbayes)](https://cran.r-project.org/package=JMbayes) [![](https://cranlogs.r-pkg.org/badges/grand-total/JMbayes)](https://CRAN.R-project.org/package=JMbayes) [![Download counter](http://cranlogs.r-pkg.org/badges/JMbayes)](https://cran.r-project.org/package=JMbayes)
-[![Research software impact](http://depsy.org/api/package/cran/JMbayes/badge.svg)](http://depsy.org/package/r/JMbayes)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1038971.svg)](https://doi.org/10.5281/zenodo.1038971)
 
 Description
@@ -81,7 +79,7 @@ Dynamic predictions
 
 * Function `prederrJM()` calculates prediction errors for joint models.
 
-* Function `runDynPred()` invokes a [shiny](https://shiny.rstudio.com/) application that 
+* Function `runDynPred()` invokes a [shiny](https://shiny.posit.co/) application that 
 can be used to streamline the calculation of dynamic predictions for models fitted by
 **JMbayes**.
 
@@ -89,10 +87,10 @@ Vignettes
 ------------
 Vignettes are available in the `doc` directory:
 
-* [Multivariate_Joint_Models.html](http://www.drizopoulos.com/vignettes/multivariate%20joint%20models) illustrates the
+* [Multivariate_Joint_Models.html](https://www.drizopoulos.com/vignettes/multivariate%20joint%20models) illustrates the
 basic capabilities of `mvJointModelBayes()`.
 
-* [Dynamic_Predictions.html](http://www.drizopoulos.com/vignettes/dynamic_predictions) illustrates how dynamic 
+* [Dynamic_Predictions.html](https://www.drizopoulos.com/vignettes/dynamic_predictions) illustrates how dynamic 
 predictions from multivariate joint models can be computed and evaluated.
 
 

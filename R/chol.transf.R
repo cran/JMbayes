@@ -1,4 +1,4 @@
-chol.transf <-
+chol_transf <-
 function (x) {
     if (any(is.na(x) | !is.finite(x))) 
         stop("NA or infinite values in 'x'.\n")
